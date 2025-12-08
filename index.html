@@ -433,32 +433,6 @@
         // ============================================================
         // FUNÇÕES DE UTILIDADE
         // ============================================================
-        function abrirWhatsApp(mensagem, numero) {
-            const urlEncodedMessage = encodeURIComponent(mensagem);
-            const whatsappLink = `https://api.whatsapp.com/send?phone=${numero}&text=${urlEncodedMessage}`;
-            
-            console.log('WhatsApp Link:', whatsappLink);
-            console.log('User Agent:', navigator.userAgent);
-            
-            // iOS Safari: criar um elemento <a> e simular clique é mais confiável
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            console.log('Is iOS:', isIOS);
-            
-            if (isIOS) {
-                // Cria um link invisível e clica nele (iOS Safari responde melhor)
-                const link = document.createElement('a');
-                link.href = whatsappLink;
-                link.target = '_blank';
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            } else {
-                // Android e navegador: window.open funciona bem
-                window.open(whatsappLink, '_blank');
-            }
-        }
-
         function formatarData(dataISO) {
              if (dataISO instanceof Date) {
                  return dataISO.toLocaleDateString('pt-BR');
@@ -572,8 +546,8 @@
                 
                 ✅ POR FAVOR, clique em OK para enviar a notificação de cancelamento para o Barbeiro via WhatsApp.`);
                 
-                // Abre o link do WhatsApp (compatível com iOS, Android e navegador)
-                abrirWhatsApp(mensagemCancelamento, numeroBarbeiro);
+                // Abre o link do WhatsApp em uma nova aba
+                window.open(whatsappLink, '_blank');
                 
                 // 5. RECARREGA A LISTA
                 loadMyHistoricalAppointments(currentUser.uid); 
@@ -1068,12 +1042,15 @@ async function agendar() {
 💰 *Valor:* R$ ${precoFormatado}
 ${observacoes ? `📝 *Obs:* ${observacoes}` : ''}
 `;
+        
+        const urlEncodedMessage = encodeURIComponent(mensagem);
+        const whatsappLink = `https://api.whatsapp.com/send?phone=${numeroBarbeiro}&text=${urlEncodedMessage}`;
 
         alert(`Agendamento de ${servicoNome} para ${formatarData(dataSelecionada)} às ${horaSelecionada}h CONFIRMADO!
         
         ✅ Clique em OK para notificar o Barbeiro via WhatsApp.`);
 
-        abrirWhatsApp(mensagem, numeroBarbeiro);
+        window.open(whatsappLink, '_blank');
         
         // 5. LIMPEZA E RECARREGAMENTO
         loadAgenda(dataSelecionada); // Assumindo que esta função existe
