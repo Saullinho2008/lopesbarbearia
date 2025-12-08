@@ -651,6 +651,7 @@
         // ============================================================
 
         onAuthStateChanged(auth, (user) => {
+            console.log("Auth state changed:", user ? `Usuário: ${user.email || user.uid}` : "Sem usuário");
             currentUser = user;
             if (user) {
                 authForm.style.display = 'none';
@@ -698,8 +699,11 @@
             const password = authPassword.value;
             if (!email || !password) return alert("Preencha email e senha para entrar.");
             try {
+                console.log("Tentando login com: " + email);
                 await signInWithEmailAndPassword(auth, email, password);
+                console.log("Login bem-sucedido");
             } catch (error) {
+                console.error("Erro ao fazer login:", error);
                 alert("Erro ao fazer login: " + error.message);
             }
         });
@@ -709,19 +713,25 @@
             const password = authPassword.value;
             if (!email || !password || password.length < 6) return alert("O email e a senha (mínimo 6 caracteres) são obrigatórios para o cadastro.");
             try {
-                await createUserWithEmailAndPassword(auth, email, password);
+                console.log("Tentando cadastro com: " + email);
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                console.log("Cadastro bem-sucedido:", userCredential.user.uid);
             } catch (error) {
+                console.error("Erro ao cadastrar:", error);
                 alert("Erro ao cadastrar: " + error.message);
             }
         });
         
         googleBtn.addEventListener('click', async () => {
             try {
+                console.log("Tentando login com Google...");
                 // Ao usar o Google, você verá o erro "auth/unauthorized-domain" 
                 // se o seu domínio (o link do Netlify) não estiver na lista de domínios 
                 // autorizados do Firebase Console.
-                await signInWithPopup(auth, googleProvider);
+                const result = await signInWithPopup(auth, googleProvider);
+                console.log("Login Google bem-sucedido:", result.user.email);
             } catch (error) {
+                console.error("Erro ao fazer login com Google:", error);
                 alert("Erro ao fazer login com Google: " + error.message);
             }
         });
@@ -729,8 +739,11 @@
 
         anonymousBtn.addEventListener('click', async () => {
             try {
-                await signInAnonymously(auth);
+                console.log("Tentando login anônimo...");
+                const result = await signInAnonymously(auth);
+                console.log("Login anônimo bem-sucedido:", result.user.uid);
             } catch (error) {
+                console.error("Erro ao continuar anônimo:", error);
                 alert("Erro ao continuar anônimo: " + error.message);
             }
         });
