@@ -183,6 +183,34 @@
             margin-bottom: 20px;
         }
         
+        .password-toggle-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: var(--primary);
+            font-size: 1.2em;
+            user-select: none;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+        
+        .password-toggle:hover {
+            opacity: 0.8;
+        }
+        
+        .password-toggle-container input[type="password"],
+        .password-toggle-container input[type="text"].password-visible {
+            padding-right: 40px;
+        }
+        
         /* Seção Semanal */
         .week-view-toggle {
             display: flex;
@@ -295,6 +323,20 @@
             .admin-actions { flex-direction: column; }
         }
     </style>
+    
+    <script>
+        // Função global para alternar visibilidade da senha
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                btn.textContent = '👁️';
+            }
+        }
+    </script>
 </head>
 <body>
 
@@ -311,7 +353,10 @@
         <div id="adminAuth">
             <h3 style="color: var(--primary);">Acesso Restrito</h3>
             <input type="email" id="adminEmail" placeholder="Email do Admin" required>
-            <input type="password" id="adminPassword" placeholder="Senha do Admin" required>
+            <div class="password-toggle-container">
+                <input type="password" id="adminPassword" placeholder="Senha do Admin" required>
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility('adminPassword', this)">👁️</button>
+            </div>
             <button id="adminLoginBtn">Entrar</button>
         </div>
 
@@ -390,12 +435,31 @@
         // CONFIGURE AQUI: lista de e-mails (ou UIDs) que podem acessar o painel de admin
         // Substitua 'seuadmin@exemplo.com' pelo e-mail real do administrador.
         const ALLOWED_ADMIN_EMAILS = [
-            'saullinho2008@gmail.com'
+            'saullinho2008@gmail.com',
+            'saullogabriell18@hotmail.com',
+            'saullogabriel182@outlook.com'
         ];
         // Você pode usar UIDs caso prefira permissão por usuário do Firebase Auth
         const ALLOWED_ADMIN_UIDS = [
             // 'firebase-uid-aqui'
         ];
+
+        // Normaliza a lista de e-mails para comparação (lowercase + trim)
+        const ALLOWED_ADMIN_EMAILS_NORMALIZED = ALLOWED_ADMIN_EMAILS.map(e => String(e).toLowerCase().trim());
+
+        // Função helper: verifica se email/uid pertence à allowlist
+        function isAllowedAdmin({ email, uid } = {}) {
+            try {
+                if (uid && ALLOWED_ADMIN_UIDS.includes(uid)) return true;
+                if (email) {
+                    const normalized = String(email).toLowerCase().trim();
+                    return ALLOWED_ADMIN_EMAILS_NORMALIZED.includes(normalized);
+                }
+            } catch (e) {
+                console.error('Erro ao verificar allowlist do admin:', e);
+            }
+            return false;
+        }
 
         // ============================================================
         // Variáveis Globais e Mapeamento de DOM
@@ -435,6 +499,45 @@
         let currentUser = null; 
         let currentWeekStart = new Date(); // Variável global para controlar a semana exibida
         let agendamentosDiaCache = []; // Cache dos agendamentos do dia atual
+
+        // ============================================================
+        // Função: Deletar agendamentos com mais de N dias (baseado no campo `data` YYYY-MM-DD)
+        // ============================================================
+        async function deleteOldAppointments(days = 32) {
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - Number(days));
+            const cutoffISO = cutoff.toISOString().split('T')[0]; // YYYY-MM-DD
+
+            try {
+                // Busca todos os agendamentos cuja data (string YYYY-MM-DD) é anterior ao cutoff
+                const q = query(
+                    collection(db, "agendamentos"),
+                    where("data", "<", cutoffISO)
+                );
+
+                const snapshot = await getDocs(q);
+                if (snapshot.empty) {
+                    console.log(`Nenhum agendamento anterior a ${cutoffISO} encontrado.`);
+                    return 0;
+                }
+
+                const deletions = [];
+                snapshot.forEach(docSnap => {
+                    const d = docSnap.data();
+                    // Preserva documentos de bloqueio de dia
+                    if (d && d.idBloqueio === "BLOQUEIO_TOTAL") return;
+                    deletions.push(deleteDoc(doc(db, "agendamentos", docSnap.id)));
+                });
+
+                await Promise.all(deletions);
+                console.log(`Deletados ${deletions.length} agendamentos anteriores a ${cutoffISO}.`);
+                return deletions.length;
+
+            } catch (err) {
+                console.error("Erro ao deletar agendamentos antigos:", err);
+                return 0;
+            }
+        }
 
         // ============================================================
         // FUNÇÕES DE UTILIDADE
@@ -555,16 +658,11 @@
         // LÓGICA DE AUTENTICAÇÃO DO ADMIN
         // ============================================================
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             if (user) {
                 // Verifica se o usuário autenticado está na lista de administradores
-                const userEmail = user.email || null;
-                const userUid = user.uid || null;
-                const emailAllowed = userEmail && ALLOWED_ADMIN_EMAILS.includes(userEmail);
-                const uidAllowed = userUid && ALLOWED_ADMIN_UIDS.includes(userUid);
-
-                if (!emailAllowed && !uidAllowed) {
+                if (!isAllowedAdmin({ email: user.email, uid: user.uid })) {
                     // Se não for admin, desloga e mostra mensagem de erro
                     alert('Acesso negado: sua conta não tem permissão para acessar o painel de administração.');
                     signOut(auth).catch(() => {});
@@ -578,14 +676,24 @@
                 adminAuth.style.display = 'none';
                 agendaSection.style.display = 'block';
                 adminWelcome.style.display = 'block';
-                
+
                 adminNameDisplay.textContent = user.displayName || user.email;
+
+                // Ao entrar como admin, executa limpeza automática de agendamentos antigos (>32 dias)
+                try {
+                    const deletados = await deleteOldAppointments(32);
+                    if (deletados > 0) {
+                        alert(`${deletados} agendamento(s) com mais de 32 dias foram removidos automaticamente.`);
+                    }
+                } catch (e) {
+                    console.error('Erro na limpeza automática de agendamentos antigos:', e);
+                }
 
                 const today = new Date().toISOString().split('T')[0];
                 if (!adminDataInput.value) {
                     adminDataInput.value = today;
                 }
-                
+
                 if (viewDailyBtn.classList.contains('active')) {
                     loadAgenda(adminDataInput.value);
                 } else {
@@ -605,9 +713,9 @@
             const email = adminEmail.value;
             const password = adminPassword.value;
             if (!email || !password) return alert("Preencha email e senha de administrador.");
-            // Bloqueia tentativas de login para e-mails que não estão na allowlist
-            if (!ALLOWED_ADMIN_EMAILS.includes(email)) {
-                return alert('Acesso ao painel restrito. Este e-mail não tem permissão para acessar o painel de administração.');
+            // Bloqueia tentativas de login para e-mails que não estão na allowlist (normalizado)
+            if (!isAllowedAdmin({ email })) {
+                return alert('Acesso ao painel restrito. Este e-mail não tem permissão para acessar o painel de administração. Verifique se o e-mail está correto.');
             }
 
             try {

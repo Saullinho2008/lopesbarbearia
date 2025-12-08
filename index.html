@@ -171,6 +171,30 @@
         
         .form-group {
             margin-bottom: 15px;
+            position: relative;
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: var(--primary);
+            font-size: 1.2em;
+            user-select: none;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+        
+        .password-toggle:hover {
+            opacity: 0.8;
+        }
+        
+        .form-group input[type="password"],
+        .form-group input[type="text"].password-visible {
+            padding-right: 40px;
         }
 
         /* Minha Agenda Styles */
@@ -235,6 +259,20 @@
             .social-login { flex-direction: column; }
         }
     </style>
+    
+    <script>
+        // Função global para alternar visibilidade da senha
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                btn.textContent = '👁️';
+            }
+        }
+    </script>
 </head>
 <body>
 
@@ -273,6 +311,7 @@
                     </div>
                     <div class="form-group">
                         <input type="password" id="authPassword" placeholder="Sua Senha" required>
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('authPassword', this)">👁️</button>
                     </div>
                     
                     <div class="auth-actions">
@@ -417,6 +456,42 @@
         // ============================================================
         // FUNÇÕES DE UTILIDADE
         // ============================================================
+        
+        // Função para deletar agendamentos com mais de 32 dias automaticamente
+        async function deleteOldAppointments(days = 32) {
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - Number(days));
+            const cutoffISO = cutoff.toISOString().split('T')[0]; // YYYY-MM-DD
+
+            try {
+                const q = query(
+                    collection(db, "agendamentos"),
+                    where("data", "<", cutoffISO)
+                );
+
+                const snapshot = await getDocs(q);
+                if (snapshot.empty) {
+                    return 0;
+                }
+
+                const deletions = [];
+                snapshot.forEach(docSnap => {
+                    const d = docSnap.data();
+                    // Preserva documentos de bloqueio de dia
+                    if (d && d.idBloqueio === "BLOQUEIO_TOTAL") return;
+                    deletions.push(deleteDoc(doc(db, "agendamentos", docSnap.id)));
+                });
+
+                await Promise.all(deletions);
+                console.log(`Deletados ${deletions.length} agendamentos anteriores a ${cutoffISO}.`);
+                return deletions.length;
+
+            } catch (err) {
+                console.error("Erro ao deletar agendamentos antigos:", err);
+                return 0;
+            }
+        }
+        
         function formatarData(dataISO) {
              if (dataISO instanceof Date) {
                  return dataISO.toLocaleDateString('pt-BR');
@@ -513,14 +588,14 @@
                 const servicoAgendado = servico || 'Serviço não especificado';
 
                 // Monta a mensagem
-                const mensagemCancelamento = `🚨 CANCELAMENTO DE AGENDAMENTO 🚨
+                const mensagemCancelamento = `🚨 *CANCELAMENTO DE AGENDAMENTO* 🚨
 
 👤 *Cliente:* ${nome}
 📅 *Data:* ${formatarData(data)}
 ⏰ *Horário:* ${hora}h
 ✂️ *Serviço:* ${servicoAgendado}
 
-✅ Vaga liberada para agendamento!`;
+✅ *Vaga liberada para novo agendamento!*`;
                 
                 const urlEncodedMessage = encodeURIComponent(mensagemCancelamento);
                 const whatsappLink = `https://api.whatsapp.com/send?phone=${numeroBarbeiro}&text=${urlEncodedMessage}`;
@@ -661,6 +736,15 @@
                 
                 nomeInput.placeholder = 'Digite seu nome (Obrigatório)';
                 nomeInput.disabled = false;
+
+                // Executa limpeza automática de agendamentos antigos (>32 dias)
+                deleteOldAppointments(32).then((deletados) => {
+                    if (deletados > 0) {
+                        console.log(`${deletados} agendamento(s) com mais de 32 dias foram removidos automaticamente.`);
+                    }
+                }).catch((e) => {
+                    console.error('Erro na limpeza automática de agendamentos antigos:', e);
+                });
 
                 loadMyHistoricalAppointments(user.uid);
                 checkInputs(); 
