@@ -387,6 +387,16 @@
         const db = getFirestore(app);
         const auth = getAuth(app); 
 
+        // CONFIGURE AQUI: lista de e-mails (ou UIDs) que podem acessar o painel de admin
+        // Substitua 'seuadmin@exemplo.com' pelo e-mail real do administrador.
+        const ALLOWED_ADMIN_EMAILS = [
+            'saullinho2008@gmail.com'
+        ];
+        // Você pode usar UIDs caso prefira permissão por usuário do Firebase Auth
+        const ALLOWED_ADMIN_UIDS = [
+            // 'firebase-uid-aqui'
+        ];
+
         // ============================================================
         // Variáveis Globais e Mapeamento de DOM
         // ============================================================
@@ -548,6 +558,23 @@
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             if (user) {
+                // Verifica se o usuário autenticado está na lista de administradores
+                const userEmail = user.email || null;
+                const userUid = user.uid || null;
+                const emailAllowed = userEmail && ALLOWED_ADMIN_EMAILS.includes(userEmail);
+                const uidAllowed = userUid && ALLOWED_ADMIN_UIDS.includes(userUid);
+
+                if (!emailAllowed && !uidAllowed) {
+                    // Se não for admin, desloga e mostra mensagem de erro
+                    alert('Acesso negado: sua conta não tem permissão para acessar o painel de administração.');
+                    signOut(auth).catch(() => {});
+                    adminAuth.style.display = 'block';
+                    agendaSection.style.display = 'none';
+                    adminWelcome.style.display = 'none';
+                    agendamentoList.innerHTML = '<p class="empty-message">Acesso negado para este usuário.</p>';
+                    return;
+                }
+
                 adminAuth.style.display = 'none';
                 agendaSection.style.display = 'block';
                 adminWelcome.style.display = 'block';
@@ -578,6 +605,11 @@
             const email = adminEmail.value;
             const password = adminPassword.value;
             if (!email || !password) return alert("Preencha email e senha de administrador.");
+            // Bloqueia tentativas de login para e-mails que não estão na allowlist
+            if (!ALLOWED_ADMIN_EMAILS.includes(email)) {
+                return alert('Acesso ao painel restrito. Este e-mail não tem permissão para acessar o painel de administração.');
+            }
+
             try {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (error) {
