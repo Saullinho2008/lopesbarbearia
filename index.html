@@ -437,8 +437,20 @@
             const urlEncodedMessage = encodeURIComponent(mensagem);
             const whatsappLink = `https://api.whatsapp.com/send?phone=${numero}&text=${urlEncodedMessage}`;
             
-            // Usa window.open para todos os dispositivos — mais confiável
-            window.open(whatsappLink, '_blank');
+            console.log('WhatsApp Link:', whatsappLink);
+            console.log('User Agent:', navigator.userAgent);
+            
+            // iOS: usar window.location.href é mais confiável que window.open
+            // Detecta iOS simples
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            console.log('Is iOS:', isIOS);
+            
+            if (isIOS) {
+                window.location.href = whatsappLink;
+            } else {
+                // Android e navegador: window.open funciona bem
+                window.open(whatsappLink, '_blank');
+            }
         }
 
         function formatarData(dataISO) {
