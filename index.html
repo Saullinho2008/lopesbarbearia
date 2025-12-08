@@ -150,42 +150,14 @@
         }
         #loginBtn, #registerBtn { background-color: var(--primary); color: black; }
         
-        /* Estilo melhorado para botões de login social/anon */
-        .social-auth {
-            display: flex;
-            gap: 10px;
+        #googleBtn { 
+            background-color: #dd4b39; 
+            color: white; 
+            width: 100%; 
             margin-top: 10px;
         }
-
-        .social-btn{
-            flex: 1;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 12px;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-            transition: transform .12s ease, box-shadow .12s ease;
-        }
-
-        .social-btn .icon { font-size: 1.2em; }
-
-        .social-btn.google{
-            background: #ffffff;
-            color: #222;
-            border: 1px solid #e6e6e6;
-        }
-        .social-btn.google:hover{ transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0,0,0,0.25); }
-
-        .social-btn.anon{
-            background: var(--blue);
-            color: #fff;
-        }
-        .social-btn.anon:hover{ transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0,0,0,0.25); }
+        
+        #anonymousBtn { background-color: var(--blue); color: white; margin-top: 10px;}
         #logoutBtn { background-color: var(--red); color: white; margin-top: 15px; }
 
         .auth-welcome {
@@ -296,10 +268,9 @@
                     </div>
                 </div>
                 
-                <div class="social-auth">
-                    <button id="googleBtn" class="social-btn google"><span class="icon">🔑</span><span>Entrar com Google</span></button>
-                    <button id="anonymousBtn" class="social-btn anon"><span class="icon">👤</span><span>Continuar como visitante</span></button>
-                </div>
+                <button id="googleBtn">🔑 Entrar com Google</button>
+                
+                <button id="anonymousBtn">Continuar Anônimo</button>
             </div>
             
             <div id="userInfoDisplay" class="auth-welcome" style="display: none;">
@@ -651,7 +622,6 @@
         // ============================================================
 
         onAuthStateChanged(auth, (user) => {
-            console.log("Auth state changed:", user ? `Usuário: ${user.email || user.uid}` : "Sem usuário");
             currentUser = user;
             if (user) {
                 authForm.style.display = 'none';
@@ -699,11 +669,8 @@
             const password = authPassword.value;
             if (!email || !password) return alert("Preencha email e senha para entrar.");
             try {
-                console.log("Tentando login com: " + email);
                 await signInWithEmailAndPassword(auth, email, password);
-                console.log("Login bem-sucedido");
             } catch (error) {
-                console.error("Erro ao fazer login:", error);
                 alert("Erro ao fazer login: " + error.message);
             }
         });
@@ -713,25 +680,19 @@
             const password = authPassword.value;
             if (!email || !password || password.length < 6) return alert("O email e a senha (mínimo 6 caracteres) são obrigatórios para o cadastro.");
             try {
-                console.log("Tentando cadastro com: " + email);
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                console.log("Cadastro bem-sucedido:", userCredential.user.uid);
+                await createUserWithEmailAndPassword(auth, email, password);
             } catch (error) {
-                console.error("Erro ao cadastrar:", error);
                 alert("Erro ao cadastrar: " + error.message);
             }
         });
         
         googleBtn.addEventListener('click', async () => {
             try {
-                console.log("Tentando login com Google...");
                 // Ao usar o Google, você verá o erro "auth/unauthorized-domain" 
                 // se o seu domínio (o link do Netlify) não estiver na lista de domínios 
                 // autorizados do Firebase Console.
-                const result = await signInWithPopup(auth, googleProvider);
-                console.log("Login Google bem-sucedido:", result.user.email);
+                await signInWithPopup(auth, googleProvider);
             } catch (error) {
-                console.error("Erro ao fazer login com Google:", error);
                 alert("Erro ao fazer login com Google: " + error.message);
             }
         });
@@ -739,11 +700,8 @@
 
         anonymousBtn.addEventListener('click', async () => {
             try {
-                console.log("Tentando login anônimo...");
-                const result = await signInAnonymously(auth);
-                console.log("Login anônimo bem-sucedido:", result.user.uid);
+                await signInAnonymously(auth);
             } catch (error) {
-                console.error("Erro ao continuar anônimo:", error);
                 alert("Erro ao continuar anônimo: " + error.message);
             }
         });
