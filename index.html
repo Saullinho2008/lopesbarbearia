@@ -862,7 +862,21 @@
             const dataEscolhida = this.value;
             if(!dataEscolhida) return;
 
-            controlarCamposInfantis(servicoInput.value); 
+            controlarCamposInfantis(servicoInput.value);
+
+            // Verifica se a data já passou
+            const dataSelecionada = new Date(dataEscolhida + 'T00:00:00');
+            const dataHoje = new Date();
+            dataHoje.setHours(0, 0, 0, 0);
+
+            if (dataSelecionada < dataHoje) {
+                areaHorarios.style.display = 'none';
+                avisoDomingo.style.display = 'block';
+                avisoDomingo.textContent = '⛔ Não é possível agendar em datas que já passaram. Por favor, escolha uma data futura.';
+                avisoDomingo.style.display = 'block';
+                btnConfirmar.disabled = true;
+                return;
+            }
 
             const diaDaSemana = new Date(dataEscolhida + 'T00:00:00').getDay();
             
@@ -870,6 +884,7 @@
             if (diaDaSemana === 0) { 
                 areaHorarios.style.display = 'none';
                 avisoDomingo.style.display = 'block';
+                avisoDomingo.textContent = '⛔ Domingo não é um dia de agendamento. Por favor, escolha outra data.';
                 btnConfirmar.disabled = true;
                 return;
             }
@@ -930,6 +945,13 @@
             const slotsNecessarios = getSlotsNecessarios();
             const isDoisSlots = slotsNecessarios === 2;
 
+            // Verifica se é hoje para validar horários que já passaram
+            const dataSelecionada = dataInput.value;
+            const dataHoje = new Date();
+            const dataHojeFormatada = dataHoje.toISOString().split('T')[0];
+            const ehHoje = dataSelecionada === dataHojeFormatada;
+            const horaAgora = new Date();
+
             horariosPossiveis.forEach(hora => {
                 const btn = document.createElement('button');
                 btn.className = 'time-btn';
@@ -937,6 +959,20 @@
 
                 const isOcupado = ocupados.includes(hora);
                 let deveBloquear = isOcupado;
+                
+                // Verifica se é um horário que já passou
+                let eHorarioPassado = false;
+                if (ehHoje) {
+                    const [horario, minuto] = hora.split(':').map(Number);
+                    const horarioSlot = new Date();
+                    horarioSlot.setHours(horario, minuto, 0, 0);
+                    
+                    if (horarioSlot < horaAgora) {
+                        eHorarioPassado = true;
+                        deveBloquear = true;
+                        btn.title = 'Horário já passou';
+                    }
+                }
                 
                 if (!isOcupado && isDoisSlots) {
                     const proximoHorario = getProximoHorario(hora);
