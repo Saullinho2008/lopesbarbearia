@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Barbeiro | Lopes Barbearia</title>
+    
+    <style>
+        :root {
+            --primary: #d4af37;
+            --dark: #1a1a1a;
+            --gray: #333;
+            --light: #f4f4f4;
+            --red: #e74c3c;
+            --green: #2ecc71;
+            --blue: #3498db;
+        }
+
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: var(--dark); color: var(--light); }
+        header { background: black; padding: 20px; text-align: center; border-bottom: 3px solid var(--primary); }
+        h1 { color: var(--primary); margin: 0; text-transform: uppercase; font-size: 1.5em; }
+        
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        
+        /* Inputs */
+        input[type="date"] {
+            width: 100%; padding: 12px; margin: 10px 0;
+            background: var(--gray); border: 1px solid var(--primary); color: white;
+            border-radius: 5px; box-sizing: border-box; font-size: 1rem;
+        }
+        
+        .agenda-controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #444;
+        }
+        
+        /* Botões de Ação Admin */
+        .admin-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: space-between;
+        }
+
+        #closeDayBtn {
+            flex-grow: 1;
+            padding: 10px;
+            background: var(--red);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #openDayBtn {
+            flex-grow: 1;
+            padding: 10px;
+            background: var(--green);
+            color: black;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Lista de Agendamentos */
+        .agendamento-list {
+            margin-top: 20px;
+        }
+
+        .agendamento-item {
+            background: #2a2a2a;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 5px solid var(--primary);
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer; /* Adicionado para indicar que é clicável */
+        }
+        
+        .agendamento-item:hover {
+            background: #3a3a3a;
+        }
+        
+        .agendamento-item.slot-extra {
+            border-left-color: #585800;
+            opacity: 0.8;
+            font-size: 0.9em;
+            margin-left: 20px;
+            cursor: default;
+        }
+        
+        .agendamento-item.dia-fechado {
+            border-left: 5px solid var(--red);
+            background: #3c1f1f;
+            cursor: default;
+        }
+
+        .agendamento-item p { margin: 5px 0; }
+        
+        .agendamento-info {
+            flex-grow: 1;
+        }
+        
+        .agendamento-actions {
+            margin-left: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .cancel-admin-btn {
+            background-color: var(--red);
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .cancel-admin-btn:hover {
+            opacity: 0.8;
+        }
+
+        .empty-message, .error-message {
+            text-align: center;
+            padding: 20px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .empty-message {
+            background: #222;
+            color: #888;
+        }
+        
+        .error-message {
+            background: #3c1f1f;
+            border: 1px solid var(--red);
+            color: var(--red);
+        }
+        
+        /* Login Admin Simples */
+        #adminAuth {
+            text-align: center;
+            padding: 20px;
+            border-radius: 5px;
+            background: #2a2a2a;
+            margin-top: 20px;
+        }
+        #adminAuth input { margin-bottom: 15px; }
+        #adminLoginBtn {
+            padding: 10px 20px;
+            background: var(--primary);
+            color: black;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #adminLogoutBtn {
+            background-color: var(--red);
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        #adminWelcome {
+            background: #2ecc7133;
+            border-left: 5px solid #2ecc71;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        
+        /* Seção Semanal */
+        .week-view-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .week-view-toggle button {
+            flex: 1;
+            padding: 10px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .week-view-toggle button.active {
+            background: var(--primary);
+            color: black;
+        }
+        
+        .weekly-day-container {
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        .weekly-day-container h4 {
+            color: var(--primary);
+            margin-top: 0;
+            border-bottom: 1px dashed #444;
+            padding-bottom: 5px;
+        }
+
+        /* Controles de Navegação Semanal */
+        .weekly-nav-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #2a2a2a;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .weekly-nav-controls button {
+            padding: 8px 15px;
+            background: var(--blue);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #currentWeekDisplay {
+            font-weight: bold;
+            color: var(--light);
+        }
+        
+        /* Modal de Detalhes do Cliente */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.8); 
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: var(--dark);
+            margin: 5% auto; 
+            padding: 20px;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            width: 90%; 
+            max-width: 500px;
+            position: relative;
+        }
+
+        .close-modal {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close-modal:hover,
+        .close-modal:focus {
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .modal-content p {
+            margin: 8px 0;
+            border-bottom: 1px dashed #444;
+            padding-bottom: 5px;
+        }
+        .modal-content p strong {
+            color: var(--primary);
+        }
+
+
+        @media (max-width: 600px) { 
+            .agendamento-item { flex-direction: column; align-items: flex-start; }
+            .agendamento-actions { margin-top: 10px; margin-left: 0; width: 100%; justify-content: space-between; }
+            .cancel-admin-btn { width: 100%; }
+            .admin-actions { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>✂️ PAINEL DE AGENDAMENTOS (BARBEIRO)</h1>
+        <div id="adminWelcome" style="display:none;">
+            <p style="margin: 0; font-weight: bold;">Bem-vindo, <span id="adminNameDisplay">Administrador</span>!</p>
+            <button id="adminLogoutBtn">Sair do Painel</button>
+        </div>
+    </header>
+    
+    <div class="container">
+        
+        <div id="adminAuth">
+            <h3 style="color: var(--primary);">Acesso Restrito</h3>
+            <input type="email" id="adminEmail" placeholder="Email do Admin" required>
+            <input type="password" id="adminPassword" placeholder="Senha do Admin" required>
+            <button id="adminLoginBtn">Entrar</button>
+        </div>
+
+        <div id="agendaSection" style="display:none;">
+            
+            <div class="week-view-toggle">
+                <button id="viewDailyBtn" class="active">Visualização Diária</button>
+                <button id="viewWeeklyBtn">Visualização Semanal</button>
+            </div>
+            
+            <div id="dailyView">
+                <div class="agenda-controls">
+                    <label>Ver Agenda de:</label>
+                    <input type="date" id="adminDataAgendamento">
+                    
+                    <div class="admin-actions">
+                        <button id="closeDayBtn">❌ FECHAR O DIA</button>
+                        <button id="openDayBtn" style="display:none;">✅ ABRIR O DIA</button>
+                    </div>
+                </div>
+
+                <h3 id="dataTitulo" style="color: var(--light);">Agenda do dia --/--/----</h3>
+                
+                <div id="agendamentoList" class="agendamento-list">
+                    <p class="empty-message">Selecione uma data para carregar os agendamentos.</p>
+                </div>
+            </div>
+            
+            <div id="weeklyView" style="display: none;">
+                <div class="weekly-nav-controls">
+                    <button id="prevWeekBtn">← Anterior</button>
+                    <span id="currentWeekDisplay">Carregando...</span>
+                    <button id="nextWeekBtn">Próxima →</button>
+                </div>
+                
+                <div id="weeklyAppointmentsContainer">
+                    <p class="empty-message">Carregando agendamentos da semana...</p>
+                </div>
+            </div>
+            
+        </div>
+        
+    </div>
+
+    <div id="clientDetailsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h3 style="color: var(--primary);">Detalhes do Agendamento</h3>
+            <div id="modalDetailsContent">
+                </div>
+        </div>
+    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs, deleteDoc, doc, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+
+
+        // ============================================================
+        // ✅ SUAS CHAVES DO FIREBASE INTEGRADA (MESMAS DO index.html)
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBLBFTLC7sqM9VUhlsypPugQ-LhcX7-0Rw",
+            authDomain: "barbearia-do-rei.firebaseapp.com",
+            projectId: "barbearia-do-rei",
+            storageBucket: "barbearia-do-rei.firebasestorage.app",
+            messagingSenderId: "546744214164",
+            appId: "1:546744214164:web:5bd367381afbef253d0a81"
+        };
+        // ============================================================
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app); 
+
+        // ============================================================
+        // Variáveis Globais e Mapeamento de DOM
+        // ============================================================
+        const adminDataInput = document.getElementById('adminDataAgendamento');
+        const agendamentoList = document.getElementById('agendamentoList');
+        const dataTitulo = document.getElementById('dataTitulo');
+        const agendaSection = document.getElementById('agendaSection');
+        
+        // Auth Admin
+        const adminAuth = document.getElementById('adminAuth');
+        const adminEmail = document.getElementById('adminEmail');
+        const adminPassword = document.getElementById('adminPassword');
+        const adminLoginBtn = document.getElementById('adminLoginBtn');
+        const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+        const adminWelcome = document.getElementById('adminWelcome');
+        const adminNameDisplay = document.getElementById('adminNameDisplay');
+
+        // Botões de Fechamento de Dia
+        const closeDayBtn = document.getElementById('closeDayBtn');
+        const openDayBtn = document.getElementById('openDayBtn');
+
+        // Visualização Semanal
+        const viewDailyBtn = document.getElementById('viewDailyBtn');
+        const viewWeeklyBtn = document.getElementById('viewWeeklyBtn');
+        const dailyView = document.getElementById('dailyView');
+        const weeklyView = document.getElementById('weeklyView');
+        const weeklyAppointmentsContainer = document.getElementById('weeklyAppointmentsContainer');
+        const prevWeekBtn = document.getElementById('prevWeekBtn');
+        const nextWeekBtn = document.getElementById('nextWeekBtn');
+        const currentWeekDisplay = document.getElementById('currentWeekDisplay');
+        
+        // Modal
+        const clientDetailsModal = document.getElementById('clientDetailsModal');
+        const modalDetailsContent = document.getElementById('modalDetailsContent');
+        
+        let currentUser = null; 
+        let currentWeekStart = new Date(); // Variável global para controlar a semana exibida
+        let agendamentosDiaCache = []; // Cache dos agendamentos do dia atual
+
+        // ============================================================
+        // FUNÇÕES DE UTILIDADE
+        // ============================================================
+        function formatarData(dataISO) {
+             if (typeof dataISO === 'string' && dataISO.includes('-')) {
+                 return dataISO.split('-').reverse().join('/');
+             }
+             return String(dataISO); 
+        }
+        
+        function formatarDataCompleta(dataISO) {
+            // Os dias são formatados corretamente para pt-BR
+            const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+            const data = new Date(dataISO + 'T00:00:00');
+            const dia = diasSemana[data.getDay()];
+            const dataFormatada = formatarData(dataISO);
+            return `${dia}, ${dataFormatada}`;
+        }
+
+        // Função para calcular o início da semana (Segunda-feira)
+        function getStartOfWeek(date) {
+            const d = new Date(date);
+            const day = d.getDay(); // 0 = Domingo, 1 = Segunda
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Ajusta para Segunda-feira
+            d.setDate(diff);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        // ============================================================
+        // LÓGICA DO MODAL
+        // ============================================================
+
+        window.openModal = function(id) {
+            const agendamento = agendamentosDiaCache.find(a => a.id === id);
+            
+            if (!agendamento) {
+                alert("Detalhes do agendamento não encontrados.");
+                return;
+            }
+
+            modalDetailsContent.innerHTML = `
+                <p><strong>Nome:</strong> ${agendamento.nome}</p>
+                <p><strong>Serviço:</strong> ${agendamento.servico}</p>
+                <p><strong>Duração:</strong> ${agendamento.duracao}</p>
+                <p><strong>Preço:</strong> R$ ${agendamento.preco.toFixed(2).replace('.', ',')}</p>
+                <p><strong>Data:</strong> ${formatarData(agendamento.data)}</p>
+                <p><strong>Hora:</strong> ${agendamento.hora}h</p>
+                <p><strong>Observações:</strong> ${agendamento.observacoes || 'Nenhuma'}</p>
+                <hr style="border-top: 1px dashed #444;">
+                <p><strong>Conta Associada (Auth):</strong> ${agendamento.userEmail}</p>
+                <p><strong>Nome (Auth):</strong> ${agendamento.userNameAuth || 'Não informado'}</p>
+                <p style="font-size: 0.8em; color: #888;">ID do Agendamento: ${agendamento.id}</p>
+            `;
+            clientDetailsModal.style.display = 'block';
+        }
+
+        window.closeModal = function() {
+            clientDetailsModal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == clientDetailsModal) {
+                closeModal();
+            }
+        }
+        
+
+        // ============================================================
+        // LÓGICA DE VISUALIZAÇÃO (DIÁRIA vs SEMANAL)
+        // ============================================================
+
+        viewDailyBtn.addEventListener('click', () => {
+            viewDailyBtn.classList.add('active');
+            viewWeeklyBtn.classList.remove('active');
+            dailyView.style.display = 'block';
+            weeklyView.style.display = 'none';
+            if (currentUser && adminDataInput.value) {
+                loadAgenda(adminDataInput.value);
+            }
+        });
+
+        viewWeeklyBtn.addEventListener('click', () => {
+            viewWeeklyBtn.classList.add('active');
+            viewDailyBtn.classList.remove('active');
+            dailyView.style.display = 'none';
+            weeklyView.style.display = 'block';
+            if (currentUser) {
+                // Ao carregar pela primeira vez a visão semanal, garante que a semana atual seja exibida
+                currentWeekStart = getStartOfWeek(new Date()); 
+                loadWeeklyAgenda(currentWeekStart);
+            } else {
+                 weeklyAppointmentsContainer.innerHTML = '<p class="empty-message">Faça login para ver a agenda semanal.</p>';
+            }
+        });
+        
+        // ============================================================
+        // CONTROLES DE NAVEGAÇÃO SEMANAL
+        // ============================================================
+        
+        prevWeekBtn.addEventListener('click', () => {
+            const newStart = new Date(currentWeekStart);
+            newStart.setDate(currentWeekStart.getDate() - 7); // Volta 7 dias
+            currentWeekStart = newStart;
+            loadWeeklyAgenda(currentWeekStart);
+        });
+
+        nextWeekBtn.addEventListener('click', () => {
+            const newStart = new Date(currentWeekStart);
+            newStart.setDate(currentWeekStart.getDate() + 7); // Avança 7 dias
+            currentWeekStart = newStart;
+            loadWeeklyAgenda(currentWeekStart);
+        });
+
+
+        // ============================================================
+        // LÓGICA DE AUTENTICAÇÃO DO ADMIN
+        // ============================================================
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                adminAuth.style.display = 'none';
+                agendaSection.style.display = 'block';
+                adminWelcome.style.display = 'block';
+                
+                adminNameDisplay.textContent = user.displayName || user.email;
+
+                const today = new Date().toISOString().split('T')[0];
+                if (!adminDataInput.value) {
+                    adminDataInput.value = today;
+                }
+                
+                if (viewDailyBtn.classList.contains('active')) {
+                    loadAgenda(adminDataInput.value);
+                } else {
+                    currentWeekStart = getStartOfWeek(new Date()); 
+                    loadWeeklyAgenda(currentWeekStart);
+                }
+
+            } else {
+                adminAuth.style.display = 'block';
+                agendaSection.style.display = 'none';
+                adminWelcome.style.display = 'none';
+                agendamentoList.innerHTML = '<p class="empty-message">Selecione uma data para carregar os agendamentos.</p>';
+            }
+        });
+
+        adminLoginBtn.addEventListener('click', async () => {
+            const email = adminEmail.value;
+            const password = adminPassword.value;
+            if (!email || !password) return alert("Preencha email e senha de administrador.");
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                alert("Erro ao fazer login: Credenciais Inválidas. " + error.message);
+            }
+        });
+
+        adminLogoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                alert("Você saiu do Painel de Administração.");
+            } catch (error) {
+                alert("Erro ao sair: " + error.message);
+            }
+        });
+        
+        // ============================================================
+        // LÓGICA DE CARREGAMENTO DA AGENDA DIÁRIA
+        // ============================================================
+
+        adminDataInput.addEventListener('change', function() {
+            if (currentUser) {
+                loadAgenda(this.value);
+            }
+        });
+
+        async function loadAgenda(data) {
+            dataTitulo.textContent = `Agenda do dia ${formatarData(data)}`;
+            agendamentoList.innerHTML = '<p class="empty-message" style="color:var(--primary);">Carregando agendamentos...</p>';
+            
+            try {
+                const q = query(
+                    collection(db, "agendamentos"), 
+                    where("data", "==", data),
+                    orderBy("hora", "asc")
+                );
+
+                const snapshot = await getDocs(q);
+                
+                agendamentosDiaCache = [];
+                let diaFechadoDoc = null;
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.idBloqueio === "BLOQUEIO_TOTAL") {
+                        diaFechadoDoc = { id: doc.id, ...data };
+                    } else {
+                         agendamentosDiaCache.push({ id: doc.id, ...data });
+                    }
+                });
+                
+                // Lógica de fechamento de dia
+                if (diaFechadoDoc) {
+                    closeDayBtn.style.display = 'none';
+                    openDayBtn.style.display = 'block';
+                    agendamentoList.innerHTML = `<div class="agendamento-item dia-fechado">
+                        <p style="margin: 0;">❌ DIA FECHADO PARA AGENDAMENTOS ONLINE</p>
+                    </div>`;
+                    return;
+                } else {
+                    closeDayBtn.style.display = 'block';
+                    openDayBtn.style.display = 'none';
+                }
+
+                if (agendamentosDiaCache.length === 0) {
+                    agendamentoList.innerHTML = '<p class="empty-message">Nenhum agendamento encontrado para esta data.</p>';
+                    return;
+                }
+
+                agendamentoList.innerHTML = '';
+                
+                agendamentosDiaCache.forEach(agendamento => {
+                    
+                    const isSlotExtra = agendamento.duracao && agendamento.duracao.includes("Slot 2/2");
+                    const isComboPrincipal = agendamento.duracao && agendamento.duracao.includes("80 min") && !isSlotExtra;
+
+                    const div = document.createElement('div');
+                    div.className = `agendamento-item ${isSlotExtra ? 'slot-extra' : ''}`;
+                    
+                    // Adicionando onclick para abrir o modal, apenas para slots não-extra
+                    if (!isSlotExtra) {
+                        div.setAttribute('onclick', `openModal('${agendamento.id}')`);
+                    } else {
+                        // Slots extras de 80 min não abrem modal, apenas o principal
+                        div.removeAttribute('onclick'); 
+                    }
+
+                    const infoHTML = `
+                        <p style="font-weight: bold;">
+                            ⏰ ${agendamento.hora}h - 
+                            <span style="color: var(--primary);">👤 ${agendamento.nome}</span> 
+                            ${isSlotExtra ? '(Continuação)' : ''}
+                        </p>
+                        <p>
+                            ✂️ ${agendamento.servico} | R$ ${agendamento.preco.toFixed(2).replace('.', ',')}
+                        </p>
+                        <p style="font-size: 0.9em; color: #ccc;">
+                            📧 ${agendamento.userEmail} 
+                            ${agendamento.observacoes ? ` | Obs: ${agendamento.observacoes}` : ''}
+                        </p>
+                    `;
+
+                    div.innerHTML = `
+                        <div class="agendamento-info">${infoHTML}</div>
+                        <div class="agendamento-actions">
+                             ${!isSlotExtra ? `<button class="cancel-admin-btn" onclick="event.stopPropagation(); cancelarAgendamentoAdmin('${agendamento.id}', '${data}', '${agendamento.hora}', ${isComboPrincipal})">
+                                Cancelar
+                            </button>` : ''}
+                        </div>
+                    `;
+                    agendamentoList.appendChild(div);
+                });
+
+            } catch (error) {
+                console.error("Erro ao carregar agenda:", error);
+                agendamentoList.innerHTML = `<p class="error-message">
+                    Erro ao carregar. Verifique a conexão com o Firebase ou as Regras de Segurança.
+                </p>`;
+            }
+        }
+        
+        // ============================================================
+        // LÓGICA DE BLOQUEIO / FECHAMENTO DE DIA
+        // ============================================================
+        
+        closeDayBtn.addEventListener('click', async () => {
+            const data = adminDataInput.value;
+            if (!data) return alert("Selecione a data primeiro.");
+            
+            const confirmacao = confirm(`Tem certeza que deseja FECHAR a agenda de todos para o dia ${formatarData(data)}? Todos os horários ficarão BLOQUEADOS no app cliente.`);
+            if (!confirmacao) return;
+
+            try {
+                await setDoc(doc(db, "agendamentos", `BLOQUEIO_${data}`), {
+                    data: data,
+                    hora: "00:00",
+                    servico: "Dia Fechado pelo Barbeiro",
+                    idBloqueio: "BLOQUEIO_TOTAL",
+                    criadoEm: new Date(),
+                    userId: currentUser.uid 
+                });
+                
+                alert(`Dia ${formatarData(data)} fechado com sucesso.`);
+                loadAgenda(data); 
+            } catch (e) {
+                console.error("Erro ao fechar dia:", e);
+                alert("Erro ao fechar o dia.");
+            }
+        });
+        
+        openDayBtn.addEventListener('click', async () => {
+            const data = adminDataInput.value;
+            if (!data) return alert("Selecione a data primeiro.");
+            
+            const confirmacao = confirm(`Tem certeza que deseja REABRIR a agenda para o dia ${formatarData(data)}?`);
+            if (!confirmacao) return;
+
+            try {
+                await deleteDoc(doc(db, "agendamentos", `BLOQUEIO_${data}`));
+                
+                alert(`Dia ${formatarData(data)} reaberto com sucesso.`);
+                loadAgenda(data); 
+            } catch (e) {
+                console.error("Erro ao reabrir dia:", e);
+                alert("Erro ao reabrir o dia.");
+            }
+        });
+
+
+       // ============================================================
+        // LÓGICA DE CANCELAMENTO PELO ADMIN
+        // ============================================================
+        window.cancelarAgendamentoAdmin = async function(idAgendamento, data, hora, isComboPrincipal) {
+            const confirmacao = confirm(`Tem certeza que deseja CANCELAR o agendamento das ${hora}h do dia ${formatarData(data)}?`);
+            if (!confirmacao) return;
+            
+            if (!currentUser) {
+                alert("Você precisa estar logado para cancelar agendamentos.");
+                return;
+            }
+
+            try {
+                // 1. Deleta o agendamento principal
+                await deleteDoc(doc(db, "agendamentos", idAgendamento));
+
+                // 2. Se for um serviço de 80 min, deleta o slot extra (que usa o horário inicial como referência)
+                if (isComboPrincipal) {
+                    const q = query(
+                        collection(db, "agendamentos"),
+                        where("data", "==", data),
+                        where("referencia", "==", hora) // Procura pelo slot extra que referencia o slot principal cancelado
+                    );
+                    const snapshot = await getDocs(q);
+                    
+                    // Se encontrar, deleta todos os documentos que possuem a referência
+                    snapshot.forEach(async (docSnapshot) => {
+                        await deleteDoc(doc(db, "agendamentos", docSnapshot.id));
+                    });
+                }
+                
+                alert(`Agendamento das ${hora}h cancelado com sucesso.`);
+                // Recarrega a lista após o cancelamento
+                loadAgenda(data); 
+                
+            } catch (e) {
+                console.error("Erro ao cancelar:", e);
+                alert("Erro ao cancelar agendamento. Verifique as regras de segurança para 'delete' e tente novamente.");
+            }
+        }
+        
+        // ============================================================
+        // LÓGICA DE AGENDAMENTOS SEMANAIS
+        // ============================================================
+        
+        async function loadWeeklyAgenda(startOfWeekDate) {
+            weeklyAppointmentsContainer.innerHTML = '<p class="empty-message" style="color:var(--primary);">Buscando agendamentos semanais...</p>';
+            
+            const startOfWeek = new Date(startOfWeekDate);
+            startOfWeek.setHours(0, 0, 0, 0); 
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 7); // 7 dias após o início (Segunda a Domingo)
+            endOfWeek.setHours(23, 59, 59, 999); 
+            
+            const startDateISO = startOfWeek.toISOString().split('T')[0];
+            const endDateISO = endOfWeek.toISOString().split('T')[0];
+            
+            currentWeekDisplay.textContent = `${formatarData(startDateISO)} a ${formatarData(new Date(endOfWeek.setDate(endOfWeek.getDate() - 1)).toISOString().split('T')[0])}`;
+
+
+            try {
+                const q = query(
+                    collection(db, "agendamentos"),
+                    where("data", ">=", startDateISO),
+                    where("data", "<", endDateISO),
+                    orderBy("data", "asc"),
+                    orderBy("hora", "asc")
+                );
+
+                const snapshot = await getDocs(q);
+                
+                if (snapshot.empty) {
+                    weeklyAppointmentsContainer.innerHTML = '<p class="empty-message">Nenhum agendamento encontrado para esta semana.</p>';
+                    return;
+                }
+
+                const agendamentosPorDia = {};
+                
+                snapshot.forEach(docSnapshot => {
+                    const agendamento = docSnapshot.data();
+                    const data = agendamento.data;
+                    
+                    if (!agendamentosPorDia[data]) {
+                        agendamentosPorDia[data] = [];
+                    }
+                    agendamentosPorDia[data].push({ id: docSnapshot.id, ...agendamento });
+                });
+
+                weeklyAppointmentsContainer.innerHTML = '';
+
+                let currentDate = new Date(startOfWeek);
+                for (let i = 0; i < 7; i++) {
+                    const dateISO = currentDate.toISOString().split('T')[0];
+                    const agendamentos = agendamentosPorDia[dateISO] || [];
+                    
+                    const dayContainer = document.createElement('div');
+                    dayContainer.className = 'weekly-day-container';
+                    
+                    let dayContent = '';
+                    let isDayBlocked = agendamentos.some(a => a.idBloqueio === "BLOQUEIO_TOTAL");
+                    
+                    if (isDayBlocked) {
+                         dayContent = `<div class="agendamento-item dia-fechado"><p>❌ DIA FECHADO PELO BARBEIRO</p></div>`;
+                    } else if (agendamentos.length === 0) {
+                        dayContent = '<p class="empty-message" style="padding: 10px;">Livre</p>';
+                    } else {
+                        agendamentos.forEach(agendamento => {
+                            if (agendamento.idBloqueio === "BLOQUEIO_TOTAL") return; 
+
+                            const isSlotExtra = agendamento.duracao && agendamento.duracao.includes("Slot 2/2");
+                            
+                            // CORREÇÃO APLICADA AQUI: Remove o que estiver entre parênteses
+                            const servicoCurto = agendamento.servico.split('(')[0].trim();
+
+                            dayContent += `
+                                <div class="agendamento-item ${isSlotExtra ? 'slot-extra' : ''}" style="margin-bottom: 5px; border-left-color: ${isSlotExtra ? '#585800' : 'var(--primary)'};">
+                                    <p style="margin: 0;">
+                                        <span style="font-weight: bold;">${agendamento.hora}h</span> | 
+                                        ${agendamento.nome} - 
+                                        ${servicoCurto}
+                                    </p>
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    dayContainer.innerHTML = `
+                        <h4>${formatarDataCompleta(dateISO)}</h4>
+                        ${dayContent}
+                    `;
+                    weeklyAppointmentsContainer.appendChild(dayContainer);
+                    
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+
+            } catch (error) {
+                console.error("Erro ao carregar agenda semanal:", error);
+                weeklyAppointmentsContainer.innerHTML = `<p class="error-message">Erro ao carregar agenda semanal.</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
