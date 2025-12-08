@@ -221,6 +221,19 @@
             .my-appointment-item { flex-direction: column; align-items: flex-start; }
             .cancel-client-btn { margin-top: 10px; width: 100%; }
         }
+
+        /* Estilos para botões sociais (Google / Anônimo) */
+        .social-login { display: flex; gap: 10px; margin-top: 12px; }
+        .social-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 12px; border-radius: 8px; font-weight: 700; cursor: pointer; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+        .social-btn .social-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; font-weight: 800; }
+        .google-btn { background: #ffffff; color: #222; border: 1px solid #ddd; }
+        .google-btn .social-icon { background: transparent; color: #DB4437; font-size: 18px; }
+        .anon-btn { background: linear-gradient(90deg, #4a7ef9, #2c5de0); color: #fff; }
+        .social-btn.secondary { background: #2a2a2a; color: var(--light); border: 1px solid #444; }
+
+        @media (max-width: 500px) {
+            .social-login { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
@@ -1052,8 +1065,52 @@ btnConfirmar.addEventListener('click', agendar);
 
 
 
-</script>   
-    
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const googleBtn = document.getElementById('googleBtn');
+    const anonymousBtn = document.getElementById('anonymousBtn');
+    const authForm = document.getElementById('authForm');
+    if (!authForm) return;
+
+    // Aplica classes sem alterar IDs (a lógica JS existente continua funcionando)
+    if (googleBtn) {
+        googleBtn.classList.add('social-btn', 'google-btn');
+        // Se o botão não tiver ícone, cria ícone simples/texto
+        if (!googleBtn.innerHTML.trim()) {
+            googleBtn.innerHTML = '<span class="social-icon">G</span><span>Entrar com Google</span>';
+        } else {
+            googleBtn.innerHTML = '<span class="social-icon">G</span>' + googleBtn.innerHTML;
+        }
+    }
+
+    if (anonymousBtn) {
+        anonymousBtn.classList.add('social-btn', 'anon-btn');
+        if (!anonymousBtn.innerHTML.trim()) {
+            anonymousBtn.innerHTML = '<span class="social-icon">👤</span><span>Continuar como visitante</span>';
+        } else {
+            anonymousBtn.innerHTML = '<span class="social-icon">👤</span>' + anonymousBtn.innerHTML;
+        }
+    }
+
+    // Agrupa os botões em um container visual abaixo dos inputs de e-mail
+    const container = document.createElement('div');
+    container.className = 'social-login';
+
+    if (googleBtn) container.appendChild(googleBtn);
+    if (anonymousBtn) container.appendChild(anonymousBtn);
+
+    // Insere após a seção de email auth (se existir) ou no final do form
+    const emailAuth = document.getElementById('emailAuthInputs');
+    if (emailAuth && emailAuth.parentNode) {
+        emailAuth.parentNode.insertBefore(container, emailAuth.nextSibling);
+    } else {
+        authForm.appendChild(container);
+    }
+});
+</script>
+
 <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 </body>
 </html>
