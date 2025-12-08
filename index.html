@@ -440,13 +440,19 @@
             console.log('WhatsApp Link:', whatsappLink);
             console.log('User Agent:', navigator.userAgent);
             
-            // iOS: usar window.location.href é mais confiável que window.open
-            // Detecta iOS simples
+            // iOS Safari: criar um elemento <a> e simular clique é mais confiável
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             console.log('Is iOS:', isIOS);
             
             if (isIOS) {
-                window.location.href = whatsappLink;
+                // Cria um link invisível e clica nele (iOS Safari responde melhor)
+                const link = document.createElement('a');
+                link.href = whatsappLink;
+                link.target = '_blank';
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             } else {
                 // Android e navegador: window.open funciona bem
                 window.open(whatsappLink, '_blank');
