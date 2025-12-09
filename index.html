@@ -457,40 +457,8 @@
         // FUNÇÕES DE UTILIDADE
         // ============================================================
         
-        // Função para deletar agendamentos com mais de 32 dias automaticamente
-        async function deleteOldAppointments(days = 32) {
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - Number(days));
-            const cutoffISO = cutoff.toISOString().split('T')[0]; // YYYY-MM-DD
-
-            try {
-                const q = query(
-                    collection(db, "agendamentos"),
-                    where("data", "<", cutoffISO)
-                );
-
-                const snapshot = await getDocs(q);
-                if (snapshot.empty) {
-                    return 0;
-                }
-
-                const deletions = [];
-                snapshot.forEach(docSnap => {
-                    const d = docSnap.data();
-                    // Preserva documentos de bloqueio de dia
-                    if (d && d.idBloqueio === "BLOQUEIO_TOTAL") return;
-                    deletions.push(deleteDoc(doc(db, "agendamentos", docSnap.id)));
-                });
-
-                await Promise.all(deletions);
-                console.log(`Deletados ${deletions.length} agendamentos anteriores a ${cutoffISO}.`);
-                return deletions.length;
-
-            } catch (err) {
-                console.error("Erro ao deletar agendamentos antigos:", err);
-                return 0;
-            }
-        }
+        // A rotina automática de remoção de agendamentos antigos foi removida.
+        // Para fins de auditoria ou limpeza, execute ações manuais no console do Firebase.
         
         function formatarData(dataISO) {
              if (dataISO instanceof Date) {
@@ -737,14 +705,7 @@
                 nomeInput.placeholder = 'Digite seu nome (Obrigatório)';
                 nomeInput.disabled = false;
 
-                // Executa limpeza automática de agendamentos antigos (>32 dias)
-                deleteOldAppointments(32).then((deletados) => {
-                    if (deletados > 0) {
-                        console.log(`${deletados} agendamento(s) com mais de 32 dias foram removidos automaticamente.`);
-                    }
-                }).catch((e) => {
-                    console.error('Erro na limpeza automática de agendamentos antigos:', e);
-                });
+                // A rotina automática de remoção de agendamentos antigos foi desativada.
 
                 loadMyHistoricalAppointments(user.uid);
                 checkInputs(); 
