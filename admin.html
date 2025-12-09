@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel do Barbeiro | Lopes Barbearia</title>
     
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
     <style>
         :root {
             --primary: #d4af37;
@@ -20,7 +22,7 @@
         header { background: black; padding: 20px; text-align: center; border-bottom: 3px solid var(--primary); }
         h1 { color: var(--primary); margin: 0; text-transform: uppercase; font-size: 1.5em; }
         
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; } /* Ajustei a largura para 900px */
         
         /* Inputs */
         input[type="date"] {
@@ -82,7 +84,7 @@
             align-items: center;
             flex-wrap: wrap;
             transition: all 0.2s ease-in-out;
-            cursor: pointer; /* Adicionado para indicar que é clicável */
+            cursor: pointer;
         }
         
         .agendamento-item:hover {
@@ -213,7 +215,7 @@
             padding-right: 40px;
         }
         
-        /* Seção Semanal */
+        /* Seção de Views */
         .week-view-toggle {
             display: flex;
             gap: 10px;
@@ -353,6 +355,47 @@
         .modal-content p strong {
             color: var(--primary);
         }
+        
+        /* Estilos do Relatório (NOVO) */
+        #reportView {
+            padding: 20px;
+            background-color: var(--gray);
+            border-radius: 8px;
+        }
+        
+        .total-geral {
+            text-align: center;
+            padding: 15px;
+            color: var(--green);
+            border: 2px solid var(--green);
+            border-radius: 5px;
+            background-color: #213c21;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            color: var(--light);
+            background-color: #444;
+            font-size: 0.95em;
+        }
+
+        th, td {
+            border: 1px solid var(--dark);
+            padding: 12px;
+            text-align: left;
+        }
+
+        thead {
+            background-color: var(--primary);
+            color: var(--dark);
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #3a3a3a;
+        }
 
 
         @media (max-width: 600px) { 
@@ -404,6 +447,7 @@
             <div class="week-view-toggle">
                 <button id="viewDailyBtn" class="active">Visualização Diária</button>
                 <button id="viewWeeklyBtn">Visualização Semanal</button>
+                <button id="viewReportBtn">Relatórios</button>
             </div>
             
             <div id="dailyView">
@@ -411,7 +455,6 @@
                     <label>Ver Agenda de:</label>
                     <input type="date" id="adminDataAgendamento">
 
-                    <!-- Formulário rápido para o admin agendar por telefone -->
                     <div style="margin-top:12px; padding:10px; border:1px solid #444; border-radius:6px; background:#222;">
                         <h4 style="margin:0 0 8px 0; color:var(--primary);">Agendar como Admin (pelo telefone)</h4>
                         <input type="text" id="adminNomeCliente" placeholder="Nome do cliente" style="margin-bottom:8px;">
@@ -423,7 +466,6 @@
                             <option value="Corte Infantil - Autismo - 80">Corte Infantil (Autismo) - 80 min</option>
                         </select>
                         <select id="adminHorarioSelecionado" style="margin-bottom:8px;">
-                            <!-- Opções preenchidas estaticamente com os horários padrões -->
                             <option value="09:00">09:00</option>
                             <option value="09:40">09:40</option>
                             <option value="10:20">10:20</option>
@@ -459,7 +501,6 @@
 
                 <h3 id="dataTitulo" style="color: var(--light);">Agenda do dia --/--/----</h3>
 
-                <!-- Grade de horários disponível para seleção pelo admin -->
                 <div id="adminHorariosArea" style="margin-top:12px;">
                     <div id="adminGridHorarios" class="horarios-grid"></div>
                     <p id="adminHorariosNote" style="color:#aaa; font-size:0.9em; margin-top:8px;">Clique em um horário disponível para selecioná-lo no formulário de agendamento acima.</p>
@@ -481,6 +522,9 @@
                     <p class="empty-message">Carregando agendamentos da semana...</p>
                 </div>
             </div>
+            
+            <div id="reportView" style="display: none;">
+                </div>
             
         </div>
         
@@ -518,13 +562,12 @@
         const auth = getAuth(app); 
 
         // CONFIGURE AQUI: lista de e-mails (ou UIDs) que podem acessar o painel de admin
-        // Substitua 'seuadmin@exemplo.com' pelo e-mail real do administrador.
         const ALLOWED_ADMIN_EMAILS = [
             'saullinho2008@gmail.com',
             'saullogabriell18@hotmail.com',
             'saullogabriel182@outlook.com'
         ];
-        // Você pode usar UIDs caso prefira permissão por usuário do Firebase Auth
+        
         const ALLOWED_ADMIN_UIDS = [
             // 'firebase-uid-aqui'
         ];
@@ -567,11 +610,13 @@
         const closeDayBtn = document.getElementById('closeDayBtn');
         const openDayBtn = document.getElementById('openDayBtn');
 
-        // Visualização Semanal
+        // Visualização
         const viewDailyBtn = document.getElementById('viewDailyBtn');
         const viewWeeklyBtn = document.getElementById('viewWeeklyBtn');
+        const viewReportBtn = document.getElementById('viewReportBtn'); // NOVO
         const dailyView = document.getElementById('dailyView');
         const weeklyView = document.getElementById('weeklyView');
+        const reportView = document.getElementById('reportView'); // NOVO
         const weeklyAppointmentsContainer = document.getElementById('weeklyAppointmentsContainer');
         const prevWeekBtn = document.getElementById('prevWeekBtn');
         const nextWeekBtn = document.getElementById('nextWeekBtn');
@@ -582,14 +627,8 @@
         const modalDetailsContent = document.getElementById('modalDetailsContent');
         
         let currentUser = null; 
-        let currentWeekStart = new Date(); // Variável global para controlar a semana exibida
-        let agendamentosDiaCache = []; // Cache dos agendamentos do dia atual
-
-        // ============================================================
-        // Função: Deletar agendamentos com mais de N dias (baseado no campo `data` YYYY-MM-DD)
-        // ============================================================
-        // Rotina de exclusão automática de agendamentos antigos removida.
-        // Para auditoria/limpeza, execute queries manuais no Console do Firebase ou implemente uma função separada com aprovação.
+        let currentWeekStart = new Date(); 
+        let agendamentosDiaCache = []; 
 
         // ============================================================
         // FUNÇÕES DE UTILIDADE
@@ -602,7 +641,6 @@
         }
         
         function formatarDataCompleta(dataISO) {
-            // Os dias são formatados corretamente para pt-BR
             const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
             const data = new Date(dataISO + 'T00:00:00');
             const dia = diasSemana[data.getDay()];
@@ -610,7 +648,11 @@
             return `${dia}, ${dataFormatada}`;
         }
 
-        // Função para calcular o início da semana (Segunda-feira)
+        function formatarPreco(valor) {
+            if (valor === undefined || valor === null || isNaN(valor)) return 'R$ 0,00';
+            return 'R$ ' + Number(valor).toFixed(2).replace('.', ',');
+        }
+
         function getStartOfWeek(date) {
             const d = new Date(date);
             const day = d.getDay(); // 0 = Domingo, 1 = Segunda
@@ -625,7 +667,6 @@
             clientDetailsModal.style.display = 'none';
         }
 
-        // Abre o modal com detalhes de um agendamento (busca pelo ID no Firestore)
         window.openModal = async function(id) {
             try {
                 if (!id) return alert('ID do agendamento não informado.');
@@ -636,11 +677,9 @@
                 }
                 const d = snap.data();
 
-                // Detecta slot extra e se é combo principal (80min)
                 const isSlotExtra = (d && ((d.servico && d.servico.toString().toUpperCase().includes('SLOT_EXTRA')) || (d.nome && d.nome.toString().toUpperCase().includes('SLOT EXTRA')) || d.parentId));
                 const isComboPrincipal = (d && d.duracao && d.duracao.toString().includes('80') && !isSlotExtra);
 
-                // Formata criadoEm/createdAt
                 let criado = '';
                 if (d) {
                     if (d.createdAt && typeof d.createdAt === 'string') criado = d.createdAt;
@@ -651,7 +690,6 @@
 
                 const obs = d.observacoes ? `<p><strong>Observações:</strong> ${d.observacoes}</p>` : '';
 
-                // Determina origem (FeitoPor): Admin ou Cliente
                 const emailNorm = d && d.userEmail ? String(d.userEmail).toLowerCase().trim() : null;
                 const isAdminOrigin = (emailNorm && ALLOWED_ADMIN_EMAILS_NORMALIZED.includes(emailNorm)) || (d && d.userId && ALLOWED_ADMIN_UIDS.includes(d.userId));
                 const feitoPor = isAdminOrigin ? 'Admin' : 'Cliente';
@@ -667,7 +705,6 @@
                     <p><strong>Criado em:</strong> ${criado}</p>
                 `;
 
-                // Monta ações (só permite cancelar se não for slot-extra)
                 let actions = '';
                 if (!isSlotExtra) {
                     actions = `<div style="margin-top:12px;"><button class="cancel-admin-btn" onclick="event.stopPropagation(); cancelarAgendamentoAdmin('${snap.id}', '${d.data}', '${d.hora}', ${isComboPrincipal})">Cancelar Agendamento</button></div>`;
@@ -689,32 +726,49 @@
         
 
         // ============================================================
-        // LÓGICA DE VISUALIZAÇÃO (DIÁRIA vs SEMANAL)
+        // LÓGICA DE VISUALIZAÇÃO (DIÁRIA vs SEMANAL vs RELATÓRIO)
         // ============================================================
-
-        viewDailyBtn.addEventListener('click', () => {
+        
+        function switchToDailyView() {
             viewDailyBtn.classList.add('active');
             viewWeeklyBtn.classList.remove('active');
+            viewReportBtn.classList.remove('active');
             dailyView.style.display = 'block';
             weeklyView.style.display = 'none';
+            reportView.style.display = 'none';
             if (currentUser && adminDataInput.value) {
                 loadAgenda(adminDataInput.value);
             }
-        });
+        }
 
-        viewWeeklyBtn.addEventListener('click', () => {
+        function switchToWeeklyView() {
             viewWeeklyBtn.classList.add('active');
             viewDailyBtn.classList.remove('active');
-            dailyView.style.display = 'none';
+            viewReportBtn.classList.remove('active');
             weeklyView.style.display = 'block';
+            dailyView.style.display = 'none';
+            reportView.style.display = 'none';
             if (currentUser) {
-                // Ao carregar pela primeira vez a visão semanal, garante que a semana atual seja exibida
                 currentWeekStart = getStartOfWeek(new Date()); 
                 loadWeeklyAgenda(currentWeekStart);
             } else {
                  weeklyAppointmentsContainer.innerHTML = '<p class="empty-message">Faça login para ver a agenda semanal.</p>';
             }
-        });
+        }
+
+        function switchToReportView() {
+            viewReportBtn.classList.add('active');
+            viewDailyBtn.classList.remove('active');
+            viewWeeklyBtn.classList.remove('active');
+            reportView.style.display = 'block';
+            dailyView.style.display = 'none';
+            weeklyView.style.display = 'none';
+            reportView.innerHTML = '<p class="empty-message">Selecione um período (Semanal/Mensal/Anual) no painel de controle.</p>';
+        }
+
+        viewDailyBtn.addEventListener('click', switchToDailyView);
+        viewWeeklyBtn.addEventListener('click', switchToWeeklyView);
+        viewReportBtn.addEventListener('click', switchToReportView); // NOVO LISTENER
         
         // ============================================================
         // CONTROLES DE NAVEGAÇÃO SEMANAL
@@ -722,14 +776,14 @@
         
         prevWeekBtn.addEventListener('click', () => {
             const newStart = new Date(currentWeekStart);
-            newStart.setDate(currentWeekStart.getDate() - 7); // Volta 7 dias
+            newStart.setDate(currentWeekStart.getDate() - 7); 
             currentWeekStart = newStart;
             loadWeeklyAgenda(currentWeekStart);
         });
 
         nextWeekBtn.addEventListener('click', () => {
             const newStart = new Date(currentWeekStart);
-            newStart.setDate(currentWeekStart.getDate() + 7); // Avança 7 dias
+            newStart.setDate(currentWeekStart.getDate() + 7); 
             currentWeekStart = newStart;
             loadWeeklyAgenda(currentWeekStart);
         });
@@ -739,7 +793,6 @@
         // LÓGICA DE AUTENTICAÇÃO DO ADMIN
         // ============================================================
 
-        // Helpers e funções para agendamento feito pelo admin (pelo telefone)
         const horariosPossiveis = [
             "09:00", "09:40", "10:20", "11:00", "11:40",
             "13:00", "13:40", "14:20", "15:00", "15:40",
@@ -749,524 +802,444 @@
         function getProximoHorario(horaAtual) {
             const idx = horariosPossiveis.indexOf(horaAtual);
             return (idx !== -1 && idx + 1 < horariosPossiveis.length) ? horariosPossiveis[idx + 1] : null;
-        }
-
+        } 
+        
         async function isSlotAvailableAdmin(data, hora) {
-            try {
-                const q = query(collection(db, "agendamentos"), where("data", "==", data), where("hora", "==", hora));
-                const snap = await getDocs(q);
-                return snap.empty; // true == disponível
-            } catch (e) {
-                console.error('Erro ao verificar disponibilidade (admin):', e);
-                return false;
-            }
-        }
-
+             try {
+                 const q = query(collection(db, "agendamentos"), where("data", "==", data), where("hora", "==", hora));
+                 const snap = await getDocs(q);
+                 return snap.empty; // true == disponível
+             } catch (e) {
+                 console.error('Erro ao verificar disponibilidade (admin):', e);
+                 return false;
+             }
+        } 
+        
         async function adminAgendar() {
             const data = adminDataInput.value;
             const nome = document.getElementById('adminNomeCliente').value.trim();
-            const servico = document.getElementById('adminServicoSelecionado').value;
+            const servicoCompleto = document.getElementById('adminServicoSelecionado').value;
             const hora = document.getElementById('adminHorarioSelecionado').value;
             const msgEl = document.getElementById('adminAgendarMsg');
-
             msgEl.style.display = 'none';
 
-            if (!data || !nome || !servico || !hora) {
+            if (!data || !nome || !servicoCompleto || !hora) {
                 alert('Preencha data, nome, serviço e horário.');
                 return;
             }
 
             // Verifica data passada
             const selecionada = new Date(data + 'T00:00:00');
-            const hoje = new Date(); hoje.setHours(0,0,0,0);
-            if (selecionada < hoje) {
-                alert('Não é possível agendar em datas que já passaram.');
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+
+            if (selecionada.getTime() < hoje.getTime()) {
+                alert('Não é possível agendar em datas passadas.');
                 return;
             }
+            
+            // Determina a duração e preço
+            let duracao = 40; 
+            let preco = 50.00; // Preço Padrão
 
-            // Bloqueio de domingo
-            const dia = new Date(data + 'T00:00:00').getDay();
-            if (dia === 0) {
-                alert('Domingo não é dia de atendimento.');
-                return;
-            }
+            if (servicoCompleto.includes("Combo")) { duracao = 80; preco = 90.00; }
+            else if (servicoCompleto.includes("Barba")) { preco = 50.00; }
+            else if (servicoCompleto.includes("Corte Infantil (Autismo)")) { duracao = 80; preco = 70.00; }
+            else if (servicoCompleto.includes("Corte Infantil")) { preco = 40.00; }
+            else if (servicoCompleto.includes("Corte")) { preco = 50.00; }
 
-            // Determina duração e preço
-            let duracao = 40;
-            let preco = 40.00;
-            if (servico.includes('80')) {
-                duracao = 80;
-                if (servico.toLowerCase().includes('combo')) preco = 75.00;
-                else preco = 60.00; // ex: autismo
-            } else if (servico.toLowerCase().includes('barba')) {
-                preco = 40.00;
-            } else if (servico.toLowerCase().includes('infantil')) {
-                preco = 40.00;
-            }
+            // Lógica de 2 slots
+            const isDoisSlots = duracao === 80;
+            let proximo = null;
 
-            // Verifica se o dia está fechado (BLOQUEIO)
-            try {
-                const bloqueioSnap = await getDoc(doc(db, 'agendamentos', `BLOQUEIO_${data}`));
-                if (bloqueioSnap && bloqueioSnap.exists()) {
-                    alert('Este dia está fechado para agendamentos (bloqueio).');
-                    return;
-                }
-            } catch (e) {
-                console.warn('Não foi possível verificar bloqueio do dia:', e);
-            }
-
-            // Verifica disponibilidade do slot principal
             const disponivel = await isSlotAvailableAdmin(data, hora);
             if (!disponivel) {
-                alert(`O horário ${hora} em ${formatarData(data)} já está ocupado.`);
+                alert(`O horário das ${hora}h está ocupado.`);
                 return;
             }
 
-            // Se serviço for 80 min, verifica slot seguinte
-            let proximo = null;
-            if (duracao === 80) {
+            if (isDoisSlots) {
                 proximo = getProximoHorario(hora);
                 if (!proximo) {
-                    alert('Não há slot seguinte disponível para este horário (serviço de 80 min).');
+                    alert(`Não há slot seguinte para o serviço de 80 minutos. O último slot disponível é ${horariosPossiveis[horariosPossiveis.length - 2]}h.`);
                     return;
                 }
                 const disponivel2 = await isSlotAvailableAdmin(data, proximo);
                 if (!disponivel2) {
-                    alert(`O próximo horário ${proximo} está ocupado; não é possível agendar o serviço de 80 min aqui.`);
+                    alert(`O próximo horário ${proximo}h está ocupado; não é possível agendar o serviço de 80 min aqui.`);
                     return;
                 }
             }
 
             try {
                 const mainRef = doc(collection(db, 'agendamentos'));
-                await setDoc(mainRef, {
-                    nome: nome,
-                    servico: servico,
-                    data: data,
-                    hora: hora,
-                    duracao: duracao + ' min',
-                    preco: preco,
-                    observacoes: '',
-                    userId: currentUser ? currentUser.uid : null,
-                    userEmail: currentUser ? currentUser.email : null,
-                    createdAt: new Date().toISOString()
+                await setDoc(mainRef, { 
+                    nome: nome, 
+                    servico: servicoCompleto, 
+                    data: data, 
+                    hora: hora, 
+                    duracao: duracao + ' min', 
+                    preco: preco, 
+                    observacoes: 'Agendado pelo Admin', 
+                    userId: currentUser ? currentUser.uid : null, 
+                    userEmail: currentUser ? currentUser.email : null, 
+                    createdAt: new Date().toISOString() 
                 });
 
                 if (proximo) {
                     const extraRef = doc(collection(db, 'agendamentos'));
-                    await setDoc(extraRef, {
-                        nome: nome + ' (SLOT EXTRA)',
-                        servico: servico + ' - SLOT_EXTRA',
-                        data: data,
-                        hora: proximo,
-                        duracao: '40 min',
-                        preco: 0,
-                        observacoes: 'Slot extra gerado pelo admin para complementar serviço de 80 min.',
-                        userId: currentUser ? currentUser.uid : null,
-                        userEmail: currentUser ? currentUser.email : null,
-                        createdAt: new Date().toISOString(),
-                        parentId: mainRef.id
+                    await setDoc(extraRef, { 
+                        nome: nome + ' (SLOT EXTRA)', 
+                        servico: servicoCompleto + ' - SLOT_EXTRA', 
+                        data: data, 
+                        hora: proximo, 
+                        duracao: '40 min', 
+                        preco: 0, 
+                        observacoes: 'Slot extra gerado pelo admin para complementar serviço de 80 min.', 
+                        userId: currentUser ? currentUser.uid : null, 
+                        userEmail: currentUser ? currentUser.email : null, 
+                        createdAt: new Date().toISOString(), 
+                        parentId: mainRef.id 
                     });
                 }
-
+                
                 msgEl.style.display = 'block';
                 msgEl.style.color = 'var(--green)';
                 msgEl.textContent = `Agendamento de ${nome} salvo para ${formatarData(data)} às ${hora}.`;
 
                 // Recarrega a agenda do dia
-                loadAgenda(data);
-
+                loadAgenda(data); 
                 // Limpa campos
                 document.getElementById('adminNomeCliente').value = '';
+                
             } catch (e) {
                 console.error('Erro ao criar agendamento pelo admin:', e);
                 alert('Erro ao salvar agendamento. Veja o console para detalhes.');
             }
-        }
+        } 
 
-        // Conecta botão
-        document.addEventListener('click', (ev) => {
-            if (ev.target && ev.target.id === 'adminAgendarBtn') {
-                ev.preventDefault();
-                adminAgendar();
+        document.addEventListener('click', (ev) => { 
+            if (ev.target && ev.target.id === 'adminAgendarBtn') { 
+                ev.preventDefault(); 
+                adminAgendar(); 
             }
-        });
+        }); 
         
-        // Renderiza botões de horário no painel admin (mostra ocupados, bloqueados e permite seleção)
-        let adminHorarioSelecionadoVar = null;
-        function renderAdminHorarios(ocupados = [], data, bloqueioTotal = false) {
-            const grid = document.getElementById('adminGridHorarios');
-            const selectHora = document.getElementById('adminHorarioSelecionado');
-            if (!grid) return;
-            grid.innerHTML = '';
+        let adminHorarioSelecionadoVar = ''; // Variável de controle (não mais usada diretamente, mas mantida)
+        let selectHora = document.getElementById('adminHorarioSelecionado');
+        
+        async function renderAdminHorarios(ocupados = [], data) {
+             const grid = document.getElementById('adminGridHorarios');
+             grid.innerHTML = '';
+             
+             // Determina se o serviço selecionado pelo admin exige 2 slots (80 min)
+             const servicoSelecionado = document.getElementById('adminServicoSelecionado').value;
+             const isDoisSlots = servicoSelecionado.includes("80");
+             const hoje = new Date().toISOString().split('T')[0];
 
-            const hoje = new Date();
-            const hojeISO = hoje.toISOString().split('T')[0];
-            const ehHoje = data === hojeISO;
-            const agora = new Date();
+             horariosPossiveis.forEach(hora => {
+                 const btn = document.createElement('button');
+                 btn.className = 'time-btn';
+                 btn.textContent = hora;
+                 btn.value = hora;
+                 
+                 let deveBloquear = ocupados.includes(hora);
+                 btn.title = '';
 
-            // Habilita todas as opções do select inicialmente
-            if (selectHora) {
-                Array.from(selectHora.options).forEach(opt => { opt.disabled = false; opt.style.display = 'block'; });
-            }
-
-            const servicoSelect = document.getElementById('adminServicoSelecionado');
-            const isDoisSlots = servicoSelect && servicoSelect.value && servicoSelect.value.includes('80');
-
-            horariosPossiveis.forEach(hora => {
-                const btn = document.createElement('button');
-                btn.className = 'time-btn';
-                btn.innerText = hora;
-
-                const isOcupado = ocupados.includes(hora);
-                let deveBloquear = isOcupado || bloqueioTotal;
-
-                // Horários já passados no dia atual
-                if (ehHoje) {
+                 // Bloqueia horários passados
+                 if (data === hoje) {
+                    const agora = new Date();
                     const [h, m] = hora.split(':').map(Number);
-                    const slot = new Date(); slot.setHours(h, m, 0, 0);
-                    if (slot < agora) {
-                        deveBloquear = true;
-                        btn.title = 'Horário já passou';
-                    }
-                }
+                    const horaAgendamento = new Date(agora);
+                    horaAgendamento.setHours(h, m, 0, 0);
 
-                // Se serviço de 80 min, verifica próximo slot também
-                if (!deveBloquear && isDoisSlots) {
+                    // Adiciona um buffer de 10 minutos
+                    const horaLimite = new Date(agora);
+                    horaLimite.setMinutes(agora.getMinutes() + 10); 
+                    
+                    if (horaAgendamento.getTime() <= horaLimite.getTime()) {
+                        deveBloquear = true;
+                        btn.title = 'Horário já passou.';
+                    }
+                 }
+
+                 if (!deveBloquear && isDoisSlots) {
                     const proximoHorario = getProximoHorario(hora);
                     if (!proximoHorario || ocupados.includes(proximoHorario)) {
                         deveBloquear = true;
-                        btn.title = proximoHorario ? `O próximo slot (${proximoHorario}) está ocupado.` : `Sem slot seguinte para serviço de 80 min.`;
+                        btn.title = proximoHorario ? `O próximo slot (${proximoHorario}h) está ocupado.` : `Sem slot seguinte para serviço de 80 min.`;
                     } else {
                         btn.classList.add('combo-slot');
                     }
-                }
+                 }
 
-                if (deveBloquear) {
-                    btn.classList.add('blocked');
-                    btn.disabled = true;
-                    // desabilita option correspondente no select
-                    if (selectHora) {
-                        const opt = Array.from(selectHora.options).find(o => o.value === hora);
-                        if (opt) opt.disabled = true;
-                    }
-                } else {
-                    btn.classList.add('clickable');
-                    btn.addEventListener('click', () => {
-                        // remove seleção anterior
-                        document.querySelectorAll('#adminGridHorarios .time-btn').forEach(b => b.classList.remove('selected'));
-                        btn.classList.add('selected');
-                        adminHorarioSelecionadoVar = hora;
-                        // preenche select e foca no nome
-                        if (selectHora) selectHora.value = hora;
-                        const nomeEl = document.getElementById('adminNomeCliente');
-                        if (nomeEl) nomeEl.focus();
-                    });
-                }
+                 if (deveBloquear) {
+                     btn.classList.add('blocked');
+                     btn.disabled = true;
+                     // desabilita option correspondente no select
+                     if (selectHora) { 
+                         const opt = Array.from(selectHora.options).find(o => o.value === hora); 
+                         if (opt) opt.disabled = true; 
+                     }
+                 } else {
+                     btn.classList.add('clickable');
+                     btn.addEventListener('click', () => {
+                         // remove seleção anterior
+                         document.querySelectorAll('#adminGridHorarios .time-btn').forEach(b => b.classList.remove('selected'));
+                         btn.classList.add('selected');
+                         adminHorarioSelecionadoVar = hora; 
+                         // preenche select e foca no nome
+                         if (selectHora) selectHora.value = hora;
+                         const nomeEl = document.getElementById('adminNomeCliente');
+                         if (nomeEl) nomeEl.focus();
+                     });
+                 }
+                 grid.appendChild(btn);
+             });
+        } 
 
-                grid.appendChild(btn);
-            });
-        }
-        // ============================================================
-
-        onAuthStateChanged(auth, async (user) => {
-            currentUser = user;
-            if (user) {
-                // Verifica se o usuário autenticado está na lista de administradores
-                if (!isAllowedAdmin({ email: user.email, uid: user.uid })) {
-                    // Se não for admin, desloga e mostra mensagem de erro
-                    alert('Acesso negado: sua conta não tem permissão para acessar o painel de administração.');
-                    signOut(auth).catch(() => {});
-                    adminAuth.style.display = 'block';
-                    agendaSection.style.display = 'none';
-                    adminWelcome.style.display = 'none';
-                    agendamentoList.innerHTML = '<p class="empty-message">Acesso negado para este usuário.</p>';
-                    return;
-                }
-
-                adminAuth.style.display = 'none';
-                agendaSection.style.display = 'block';
-                adminWelcome.style.display = 'block';
-
+        onAuthStateChanged(auth, async (user) => { 
+            currentUser = user; 
+            if (user) { 
+                if (!isAllowedAdmin({ email: user.email, uid: user.uid })) { 
+                    alert('Acesso negado: sua conta não tem permissão para acessar o painel de administração.'); 
+                    signOut(auth).catch(() => {}); 
+                    adminAuth.style.display = 'block'; 
+                    agendaSection.style.display = 'none'; 
+                    adminWelcome.style.display = 'none'; 
+                    agendamentoList.innerHTML = '<p class="empty-message">Acesso negado para este usuário.</p>'; 
+                    return; 
+                } 
+                adminAuth.style.display = 'none'; 
+                agendaSection.style.display = 'block'; 
+                adminWelcome.style.display = 'block'; 
                 adminNameDisplay.textContent = user.displayName || user.email;
-
-                // Ao entrar como admin, executa limpeza automática de agendamentos antigos (>32 dias)
-                // Limpeza automática de agendamentos antigos removida. Operações manuais podem ser executadas no Firestore.
-
+                
+                // Carrega a agenda do dia atual por padrão ao logar
                 const today = new Date().toISOString().split('T')[0];
-                if (!adminDataInput.value) {
-                    adminDataInput.value = today;
-                }
+                adminDataInput.value = today;
+                loadAgenda(today);
 
-                if (viewDailyBtn.classList.contains('active')) {
-                    loadAgenda(adminDataInput.value);
-                } else {
-                    currentWeekStart = getStartOfWeek(new Date()); 
-                    loadWeeklyAgenda(currentWeekStart);
-                }
-
-            } else {
-                adminAuth.style.display = 'block';
-                agendaSection.style.display = 'none';
+            } else { 
+                adminAuth.style.display = 'block'; 
+                agendaSection.style.display = 'none'; 
                 adminWelcome.style.display = 'none';
-                agendamentoList.innerHTML = '<p class="empty-message">Selecione uma data para carregar os agendamentos.</p>';
             }
-        });
-
-        adminLoginBtn.addEventListener('click', async () => {
-            const email = adminEmail.value;
+        }); 
+        
+        adminLoginBtn.addEventListener('click', async () => { 
+            const email = adminEmail.value.trim();
             const password = adminPassword.value;
-            if (!email || !password) return alert("Preencha email e senha de administrador.");
-            // Bloqueia tentativas de login para e-mails que não estão na allowlist (normalizado)
-            if (!isAllowedAdmin({ email })) {
-                return alert('Acesso ao painel restrito. Este e-mail não tem permissão para acessar o painel de administração. Verifique se o e-mail está correto.');
+            if (!email || !password) { alert('Preencha email e senha.'); return; } 
+
+            // Checagem primária local para evitar chamadas de Auth desnecessárias
+            if (!isAllowedAdmin({ email: email })) {
+                 alert('Credenciais Inválidas ou Acesso Negado.'); return;
             }
 
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                alert("Erro ao fazer login: Credenciais Inválidas. " + error.message);
-            }
-        });
-
-        adminLogoutBtn.addEventListener('click', async () => {
-            try {
-                await signOut(auth);
-                alert("Você saiu do Painel de Administração.");
-            } catch (error) {
-                alert("Erro ao sair: " + error.message);
-            }
-        });
+            try { 
+                await signInWithEmailAndPassword(auth, email, password); 
+            } catch (error) { 
+                alert("Erro ao fazer login: Credenciais Inválidas. " + error.message); 
+            } 
+        }); 
+        
+        adminLogoutBtn.addEventListener('click', async () => { 
+            try { 
+                await signOut(auth); 
+                alert("Você saiu do Painel de Administração."); 
+            } catch (error) { 
+                alert("Erro ao sair: " + error.message); 
+            } 
+        }); 
         
         // ============================================================
-        // LÓGICA DE CARREGAMENTO DA AGENDA DIÁRIA
+        // LÓGICA DE CARREGAMENTO DA AGENDA DIÁRIA 
         // ============================================================
-
-        adminDataInput.addEventListener('change', function() {
-            if (currentUser) {
-                loadAgenda(this.value);
-            }
-        });
-
-        // Quando o serviço selecionado pelo admin muda, atualiza a grade para refletir necessidade de 2 slots
-        const adminServicoSelect = document.getElementById('adminServicoSelecionado');
-        if (adminServicoSelect) {
-            adminServicoSelect.addEventListener('change', () => {
-                const data = adminDataInput.value || new Date().toISOString().split('T')[0];
-                const ocupados = agendamentosDiaCache.map(a => a.hora).filter(Boolean);
-                renderAdminHorarios(ocupados, data);
-            });
-        }
-
-        async function loadAgenda(data) {
-            dataTitulo.textContent = `Agenda do dia ${formatarData(data)}`;
-            agendamentoList.innerHTML = '<p class="empty-message" style="color:var(--primary);">Carregando agendamentos...</p>';
+        adminDataInput.addEventListener('change', function() { 
+            if (currentUser) { 
+                loadAgenda(this.value); 
+            } 
+        }); 
+        
+        const adminServicoSelect = document.getElementById('adminServicoSelecionado'); 
+        if (adminServicoSelect) { 
+            adminServicoSelect.addEventListener('change', () => { 
+                const data = adminDataInput.value || new Date().toISOString().split('T')[0]; 
+                const ocupados = agendamentosDiaCache.map(a => a.hora).filter(Boolean); 
+                renderAdminHorarios(ocupados, data); 
+            }); 
+        } 
+        
+        async function loadAgenda(data) { 
+            dataTitulo.textContent = `Agenda do dia ${formatarData(data)}`; 
+            agendamentoList.innerHTML = '<p class="empty-message" style="color:var(--primary);">Carregando agendamentos...</p>'; 
             
-            try {
-                const q = query(
+            try { 
+                const q = query( 
                     collection(db, "agendamentos"), 
-                    where("data", "==", data),
-                    orderBy("hora", "asc")
-                );
-
-                const snapshot = await getDocs(q);
+                    where("data", "==", data), 
+                    orderBy("hora", "asc") 
+                ); 
+                const snapshot = await getDocs(q); 
+                agendamentosDiaCache = []; 
+                let diaFechadoDoc = null; 
                 
-                agendamentosDiaCache = [];
-                let diaFechadoDoc = null;
+                snapshot.forEach((doc) => { 
+                    const agendamentoData = doc.data(); 
+                    if (agendamentoData.idBloqueio === "BLOQUEIO_TOTAL") { 
+                        diaFechadoDoc = { id: doc.id, ...agendamentoData }; 
+                    } else { 
+                        agendamentosDiaCache.push({ id: doc.id, ...agendamentoData }); 
+                    } 
+                }); 
 
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    if (data.idBloqueio === "BLOQUEIO_TOTAL") {
-                        diaFechadoDoc = { id: doc.id, ...data };
-                    } else {
-                         agendamentosDiaCache.push({ id: doc.id, ...data });
-                    }
-                });
-                
-                // Lógica de fechamento de dia
-                if (diaFechadoDoc) {
-                    closeDayBtn.style.display = 'none';
-                    openDayBtn.style.display = 'block';
-                    agendamentoList.innerHTML = `<div class="agendamento-item dia-fechado">
-                        <p style="margin: 0;">❌ DIA FECHADO PARA AGENDAMENTOS ONLINE</p>
-                    </div>`;
-                    // mesmo com dia fechado, atualiza a grade com todos os horários bloqueados
-                    renderAdminHorarios([], data, true);
+                // Lógica de fechamento de dia 
+                if (diaFechadoDoc) { 
+                    closeDayBtn.style.display = 'none'; 
+                    openDayBtn.style.display = 'block'; 
+                    agendamentoList.innerHTML = `<div class="agendamento-item dia-fechado"> <p> ❌ O dia ${formatarData(data)} está FECHADO para agendamentos. </p> </div>`;
+                    renderAdminHorarios(horariosPossiveis, data); // Bloqueia todos os horários
                     return;
-                } else {
-                    closeDayBtn.style.display = 'block';
-                    openDayBtn.style.display = 'none';
                 }
-                // Monta lista de horários ocupados a partir dos agendamentos do dia
-                const ocupados = agendamentosDiaCache.map(a => a.hora).filter(Boolean);
+                
+                closeDayBtn.style.display = 'block'; 
+                openDayBtn.style.display = 'none'; 
 
-                // Renderiza a grade de horários (sempre, mesmo que não haja agendamentos)
-                renderAdminHorarios(ocupados, data);
+                const ocupados = agendamentosDiaCache.map(a => a.hora).filter(Boolean);
+                renderAdminHorarios(ocupados, data); // Renderiza horários disponíveis/ocupados
 
                 if (agendamentosDiaCache.length === 0) {
-                    agendamentoList.innerHTML = '<p class="empty-message">Nenhum agendamento encontrado para esta data.</p>';
-                } else {
-                    agendamentoList.innerHTML = '';
+                    agendamentoList.innerHTML = `<p class="empty-message">Nenhum agendamento encontrado para ${formatarData(data)}.</p>`;
+                    return;
                 }
-                
+
+                agendamentoList.innerHTML = '';
                 agendamentosDiaCache.forEach(agendamento => {
-                    
-                    const isSlotExtra = agendamento.duracao && agendamento.duracao.includes("Slot 2/2");
-                    const isComboPrincipal = agendamento.duracao && agendamento.duracao.includes("80 min") && !isSlotExtra;
+                    // Verifica se o agendamento é o slot principal de um Combo
+                    const isComboPrincipal = (agendamento.duracao && agendamento.duracao.toString().includes('80') && !agendamento.parentId);
+                    const isSlotExtra = agendamento.parentId || (agendamento.servico && agendamento.servico.toString().toUpperCase().includes('SLOT_EXTRA'));
 
                     const div = document.createElement('div');
-                    div.className = `agendamento-item ${isSlotExtra ? 'slot-extra' : ''}`;
+                    div.className = `agendamento-item clickable ${isSlotExtra ? 'slot-extra' : ''}`;
+                    div.setAttribute('onclick', `openModal('${agendamento.id}')`);
                     
-                    // Adicionando onclick para abrir o modal, apenas para slots não-extra
-                    if (!isSlotExtra) {
-                        div.setAttribute('onclick', `openModal('${agendamento.id}')`);
-                    } else {
-                        // Slots extras de 80 min não abrem modal, apenas o principal
-                        div.removeAttribute('onclick'); 
-                    }
-
                     const infoHTML = `
-                        <p style="font-weight: bold;">
-                            ⏰ ${agendamento.hora}h - 
-                            <span style="color: var(--primary);">👤 ${agendamento.nome}</span> 
-                            ${isSlotExtra ? '(Continuação)' : ''}
-                        </p>
-                        <p>
-                            ✂️ ${agendamento.servico} | R$ ${agendamento.preco.toFixed(2).replace('.', ',')}
-                        </p>
-                        <p style="font-size: 0.9em; color: #ccc;">
-                            📧 ${agendamento.userEmail} 
-                            ${agendamento.observacoes ? ` | Obs: ${agendamento.observacoes}` : ''}
-                        </p>
+                        <p style="font-weight: bold;"> 
+                            ⏰ ${agendamento.hora}h - <span style="color: var(--primary);">👤 ${agendamento.nome}</span> ${isSlotExtra ? '(Continuação)' : ''} 
+                        </p> 
+                        <p> 
+                            ✂️ ${agendamento.servico} | ${formatarPreco(agendamento.preco)}
+                        </p> 
+                        <p style="font-size: 0.9em; color: #ccc;"> 
+                            📧 ${agendamento.userEmail} ${agendamento.observacoes ? ` | Obs: ${agendamento.observacoes}` : ''} 
+                        </p> 
                     `;
-
-                    div.innerHTML = `
-                        <div class="agendamento-info">${infoHTML}</div>
-                        <div class="agendamento-actions">
-                             ${!isSlotExtra ? `<button class="cancel-admin-btn" onclick="event.stopPropagation(); cancelarAgendamentoAdmin('${agendamento.id}', '${data}', '${agendamento.hora}', ${isComboPrincipal})">
-                                Cancelar
-                            </button>` : ''}
-                        </div>
-                    `;
-                    agendamentoList.appendChild(div);
-                });
-
-            } catch (error) {
-                console.error("Erro ao carregar agenda:", error);
-                agendamentoList.innerHTML = `<p class="error-message">
-                    Erro ao carregar. Verifique a conexão com o Firebase ou as Regras de Segurança.
-                </p>`;
-            }
-        }
+                    
+                    div.innerHTML = ` 
+                        <div class="agendamento-info">${infoHTML}</div> 
+                        <div class="agendamento-actions"> 
+                            ${!isSlotExtra ? `<button class="cancel-admin-btn" onclick="event.stopPropagation(); cancelarAgendamentoAdmin('${agendamento.id}', '${data}', '${agendamento.hora}', ${isComboPrincipal})"> Cancelar </button>` : ''} 
+                        </div> 
+                    `; 
+                    agendamentoList.appendChild(div); 
+                }); 
+            } catch (error) { 
+                console.error("Erro ao carregar agenda:", error); 
+                agendamentoList.innerHTML = `<p class="error-message"> Erro ao carregar. Verifique a conexão com o Firebase ou as Regras de Segurança. </p>`; 
+            } 
+        } 
         
         // ============================================================
-        // LÓGICA DE BLOQUEIO / FECHAMENTO DE DIA
+        // LÓGICA DE BLOQUEIO / FECHAMENTO DE DIA 
         // ============================================================
-        
-        closeDayBtn.addEventListener('click', async () => {
-            const data = adminDataInput.value;
-            if (!data) return alert("Selecione a data primeiro.");
-            
-            const confirmacao = confirm(`Tem certeza que deseja FECHAR a agenda de todos para o dia ${formatarData(data)}? Todos os horários ficarão BLOQUEADOS no app cliente.`);
-            if (!confirmacao) return;
-
-            try {
-                await setDoc(doc(db, "agendamentos", `BLOQUEIO_${data}`), {
-                    data: data,
-                    hora: "00:00",
-                    servico: "Dia Fechado pelo Barbeiro",
-                    idBloqueio: "BLOQUEIO_TOTAL",
-                    criadoEm: new Date(),
+        closeDayBtn.addEventListener('click', async () => { 
+            const data = adminDataInput.value; 
+            if (!data) return alert("Selecione a data primeiro."); 
+            const confirmacao = confirm(`Tem certeza que deseja FECHAR a agenda de todos para o dia ${formatarData(data)}? Todos os horários ficarão BLOQUEADOS no app cliente.`); 
+            if (!confirmacao) return; 
+            try { 
+                await setDoc(doc(db, "agendamentos", `BLOQUEIO_${data}`), { 
+                    data: data, 
+                    hora: "00:00", 
+                    servico: "Dia Fechado pelo Barbeiro", 
+                    idBloqueio: "BLOQUEIO_TOTAL", 
+                    criadoEm: new Date(), 
                     userId: currentUser.uid 
-                });
-                
-                alert(`Dia ${formatarData(data)} fechado com sucesso.`);
+                }); 
+                alert(`Dia ${formatarData(data)} fechado com sucesso.`); 
                 loadAgenda(data); 
-            } catch (e) {
-                console.error("Erro ao fechar dia:", e);
-                alert("Erro ao fechar o dia.");
+            } catch (e) { 
+                console.error("Erro ao fechar dia:", e); 
+                alert("Erro ao fechar o dia."); 
             }
-        });
+        }); 
         
-        openDayBtn.addEventListener('click', async () => {
-            const data = adminDataInput.value;
-            if (!data) return alert("Selecione a data primeiro.");
-            
-            const confirmacao = confirm(`Tem certeza que deseja REABRIR a agenda para o dia ${formatarData(data)}?`);
-            if (!confirmacao) return;
-
-            try {
-                await deleteDoc(doc(db, "agendamentos", `BLOQUEIO_${data}`));
-                
-                alert(`Dia ${formatarData(data)} reaberto com sucesso.`);
+        openDayBtn.addEventListener('click', async () => { 
+            const data = adminDataInput.value; 
+            if (!data) return alert("Selecione a data primeiro."); 
+            const confirmacao = confirm(`Tem certeza que deseja ABRIR a agenda para o dia ${formatarData(data)}?`); 
+            if (!confirmacao) return; 
+            try { 
+                await deleteDoc(doc(db, "agendamentos", `BLOQUEIO_${data}`)); 
+                alert(`Dia ${formatarData(data)} aberto com sucesso.`); 
                 loadAgenda(data); 
-            } catch (e) {
-                console.error("Erro ao reabrir dia:", e);
-                alert("Erro ao reabrir o dia.");
-            }
-        });
+            } catch (e) { 
+                console.error("Erro ao abrir dia:", e); 
+                alert("Erro ao abrir o dia. Verifique se o bloqueio existe."); 
+            } 
+        }); 
 
-
-       // ============================================================
-        // LÓGICA DE CANCELAMENTO PELO ADMIN
         // ============================================================
-        window.cancelarAgendamentoAdmin = async function(idAgendamento, data, hora, isComboPrincipal) {
-            const confirmacao = confirm(`Tem certeza que deseja CANCELAR o agendamento das ${hora}h do dia ${formatarData(data)}?`);
-            if (!confirmacao) return;
-            
-            if (!currentUser) {
-                alert("Você precisa estar logado para cancelar agendamentos.");
-                return;
-            }
+        // LÓGICA DE CANCELAMENTO
+        // ============================================================
+        window.cancelarAgendamentoAdmin = async function(id, data, hora, isComboPrincipal) { 
+            closeModal();
+            const confirmacao = confirm(`Tem certeza que deseja CANCELAR o agendamento das ${hora}h no dia ${formatarData(data)}?`); 
+            if (!confirmacao) return; 
+            try { 
+                // Deleta o agendamento principal
+                await deleteDoc(doc(db, "agendamentos", id)); 
 
-            try {
-                // 1. Deleta o agendamento principal
-                await deleteDoc(doc(db, "agendamentos", idAgendamento));
-
-                // 2. Se for um serviço de 80 min, deleta o slot extra (que usa o horário inicial como referência)
+                // Se for um Combo (80 min), busca e deleta o slot extra
                 if (isComboPrincipal) {
                     const q = query(
-                        collection(db, "agendamentos"),
-                        where("data", "==", data),
-                        where("referencia", "==", hora) // Procura pelo slot extra que referencia o slot principal cancelado
+                        collection(db, "agendamentos"), 
+                        where("parentId", "==", id)
                     );
                     const snapshot = await getDocs(q);
-                    
-                    // Se encontrar, deleta todos os documentos que possuem a referência
                     snapshot.forEach(async (docSnapshot) => {
-                        await deleteDoc(doc(db, "agendamentos", docSnapshot.id));
+                         await deleteDoc(doc(db, "agendamentos", docSnapshot.id)); 
                     });
                 }
                 
-                alert(`Agendamento das ${hora}h cancelado com sucesso.`);
-                // Recarrega a lista após o cancelamento
-                loadAgenda(data); 
-                
-            } catch (e) {
-                console.error("Erro ao cancelar:", e);
-                alert("Erro ao cancelar agendamento. Verifique as regras de segurança para 'delete' e tente novamente.");
-            }
-        }
-        
+                alert(`Agendamento das ${hora}h cancelado com sucesso.`); 
+                loadAgenda(data); // Recarrega a lista após o cancelamento
+            } catch (e) { 
+                console.error("Erro ao cancelar:", e); 
+                alert("Erro ao cancelar agendamento. Verifique as regras de segurança para 'delete' e tente novamente."); 
+            } 
+        } 
+
         // ============================================================
         // LÓGICA DE AGENDAMENTOS SEMANAIS
         // ============================================================
-        
         async function loadWeeklyAgenda(startOfWeekDate) {
             weeklyAppointmentsContainer.innerHTML = '<p class="empty-message" style="color:var(--primary);">Buscando agendamentos semanais...</p>';
-            
             const startOfWeek = new Date(startOfWeekDate);
-            startOfWeek.setHours(0, 0, 0, 0); 
-            
+            startOfWeek.setHours(0, 0, 0, 0);
             const endOfWeek = new Date(startOfWeek);
             endOfWeek.setDate(startOfWeek.getDate() + 7); // 7 dias após o início (Segunda a Domingo)
-            endOfWeek.setHours(23, 59, 59, 999); 
-            
+            endOfWeek.setHours(23, 59, 59, 999);
+
             const startDateISO = startOfWeek.toISOString().split('T')[0];
             const endDateISO = endOfWeek.toISOString().split('T')[0];
             
-            currentWeekDisplay.textContent = `${formatarData(startDateISO)} a ${formatarData(new Date(endOfWeek.setDate(endOfWeek.getDate() - 1)).toISOString().split('T')[0])}`;
+            // Ajuste para exibir corretamente a data final
+            const endOfWeekDisplay = new Date(startOfWeek);
+            endOfWeekDisplay.setDate(startOfWeek.getDate() + 6);
 
+            currentWeekDisplay.textContent = `${formatarData(startDateISO)} a ${formatarData(endOfWeekDisplay.toISOString().split('T')[0])}`;
 
             try {
                 const q = query(
@@ -1276,20 +1249,17 @@
                     orderBy("data", "asc"),
                     orderBy("hora", "asc")
                 );
-
                 const snapshot = await getDocs(q);
-                
+
                 if (snapshot.empty) {
                     weeklyAppointmentsContainer.innerHTML = '<p class="empty-message">Nenhum agendamento encontrado para esta semana.</p>';
                     return;
                 }
 
                 const agendamentosPorDia = {};
-                
                 snapshot.forEach(docSnapshot => {
                     const agendamento = docSnapshot.data();
                     const data = agendamento.data;
-                    
                     if (!agendamentosPorDia[data]) {
                         agendamentosPorDia[data] = [];
                     }
@@ -1297,37 +1267,32 @@
                 });
 
                 weeklyAppointmentsContainer.innerHTML = '';
-
+                
                 let currentDate = new Date(startOfWeek);
+                // Renderiza os 7 dias da semana
                 for (let i = 0; i < 7; i++) {
                     const dateISO = currentDate.toISOString().split('T')[0];
-                    const agendamentos = agendamentosPorDia[dateISO] || [];
+                    const dayAppointments = agendamentosPorDia[dateISO] || [];
                     
                     const dayContainer = document.createElement('div');
-                    dayContainer.className = 'weekly-day-container';
+                    dayContainer.classList.add('weekly-day-container');
                     
                     let dayContent = '';
-                    let isDayBlocked = agendamentos.some(a => a.idBloqueio === "BLOQUEIO_TOTAL");
                     
-                    if (isDayBlocked) {
-                         dayContent = `<div class="agendamento-item dia-fechado"><p>❌ DIA FECHADO PELO BARBEIRO</p></div>`;
-                    } else if (agendamentos.length === 0) {
-                        dayContent = '<p class="empty-message" style="padding: 10px;">Livre</p>';
+                    if (dayAppointments.some(a => a.idBloqueio === "BLOQUEIO_TOTAL")) {
+                        dayContent = '<p class="agendamento-item dia-fechado">❌ DIA FECHADO</p>';
+                    } else if (dayAppointments.length === 0) {
+                        dayContent = '<p style="margin-top: 10px; color: #888; font-size: 0.9em; text-align: center;">Nenhum agendamento.</p>';
                     } else {
-                        agendamentos.forEach(agendamento => {
-                            if (agendamento.idBloqueio === "BLOQUEIO_TOTAL") return; 
-
-                            const isSlotExtra = agendamento.duracao && agendamento.duracao.toString().toLowerCase().includes("slot") && (agendamento.servico && agendamento.servico.toString().toUpperCase().includes('SLOT') || agendamento.nome && agendamento.nome.toString().toUpperCase().includes('SLOT') || agendamento.parentId);
-                            // CORREÇÃO APLICADA AQUI: Remove o que estiver entre parênteses
-                            const servicoCurto = agendamento.servico ? agendamento.servico.split('(')[0].trim() : '';
-
-                            const clickAttr = !isSlotExtra ? `onclick="openModal('${agendamento.id}')"` : '';
+                        dayAppointments.forEach(agendamento => {
+                            const isSlotExtra = agendamento.parentId || (agendamento.servico && agendamento.servico.toString().toUpperCase().includes('SLOT_EXTRA'));
+                            const servicoCurto = agendamento.servico.split('(')[0].trim();
 
                             dayContent += `
-                                <div class="agendamento-item ${isSlotExtra ? 'slot-extra' : ''}" ${clickAttr} style="margin-bottom: 5px; border-left-color: ${isSlotExtra ? '#585800' : 'var(--primary)'};">
+                                <div class="agendamento-item ${isSlotExtra ? 'slot-extra' : ''}" onclick="openModal('${agendamento.id}')" style="margin-bottom: 5px; border-left-color: ${isSlotExtra ? '#585800' : 'var(--primary)'};">
                                     <p style="margin: 0;">
                                         <span style="font-weight: bold;">${agendamento.hora}h</span> | 
-                                        ${agendamento.nome || ''} - 
+                                        ${agendamento.nome} - 
                                         ${servicoCurto}
                                     </p>
                                 </div>
@@ -1349,319 +1314,217 @@
                 weeklyAppointmentsContainer.innerHTML = `<p class="error-message">Erro ao carregar agenda semanal.</p>`;
             }
         }
+        
+        // ============================================================
+        // LÓGICA DE RELATÓRIOS (NOVO)
+        // ============================================================
 
-        // ===================== Relatórios =====================
-        function pad(n){return String(n).padStart(2,'0');}
+        function normalizarServico(servico) { 
+             if (!servico) return 'Serviço Indefinido'; 
+             const svc = String(servico).trim(); 
+             
+             if (svc.includes('Combo') || svc.includes('Combo Cabelo + Barba')) { return 'Combo Cabelo e Barba'; } 
+             if (svc.includes('Corte Infantil (Autismo)')) { return 'Corte Infantil - Autismo'; } 
+             if (svc.includes('Corte Infantil')) { return 'Corte Infantil'; } 
+             if (svc.includes('Corte') && !svc.includes('Infantil')) { return 'Corte Simples'; } 
+             if (svc.includes('Barba')) { return 'Barba'; } 
+             
+             // Remove duração (Ex: - 40 min)
+             return svc.split(' - ')[0].trim();
+        }
 
+        function renderServiceReports(serviceList, totalRevenue, periodDisplay) {
+            reportView.innerHTML = `
+                <h2 style="color: var(--primary); margin-bottom: 20px;">📊 Relatório de Vendas: ${periodDisplay}</h2>
+                <div id="report-container"></div>
+            `;
+            const container = document.getElementById('report-container');
+
+            // 1. Total Geral
+            container.innerHTML += `
+                <div class="total-geral">
+                    VALOR TOTAL DE RECEITA: ${formatarPreco(totalRevenue)}
+                </div>
+            `;
+
+            // Preparar dados para Tabela e Gráfico
+            let tableHTML = `
+                <h3 style="margin-top: 20px; color: var(--light); border-bottom: 1px dashed #444; padding-bottom: 5px;">Resumo Detalhado por Serviço</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Serviço</th>
+                            <th>Total Vendido</th>
+                            <th>Participação (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            const chartLabels = [];
+            const chartData = [];
+            const chartColors = ['#d4af37', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#e67e22', '#1abc9c'];
+            let colorIndex = 0;
+
+            // Ordena por maior total primeiro e itera
+            serviceList.sort((a, b) => b.total - a.total); 
+
+            serviceList.forEach(item => {
+                const percentual = ((item.total / totalRevenue) * 100).toFixed(1);
+                const color = chartColors[colorIndex % chartColors.length];
+                colorIndex++;
+
+                // Tabela
+                tableHTML += `
+                    <tr>
+                        <td>${item.servico}</td>
+                        <td>${formatarPreco(item.total)}</td>
+                        <td>${percentual}%</td>
+                    </tr>
+                `;
+
+                // Gráfico
+                chartLabels.push(`${item.servico} (${percentual}%)`);
+                chartData.push(item.total);
+            });
+
+            tableHTML += '</tbody></table>';
+            container.innerHTML += tableHTML;
+
+            // 2. Gráfico de Pizza
+            if (serviceList.length > 0) {
+                // Container do Canvas
+                const canvasContainer = document.createElement('div');
+                canvasContainer.style.maxWidth = '450px';
+                canvasContainer.style.margin = '40px auto 10px auto';
+                canvasContainer.innerHTML = '<canvas id="pieChart"></canvas>';
+                container.appendChild(canvasContainer);
+                
+                // Renderiza o Chart.js
+                new Chart(
+                    document.getElementById('pieChart'),
+                    {
+                        type: 'pie',
+                        data: {
+                            labels: chartLabels,
+                            datasets: [{
+                                label: 'Vendas por Serviço (R$)',
+                                data: chartData,
+                                backgroundColor: chartColors.slice(0, serviceList.length), 
+                                hoverOffset: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    position: 'right',
+                                    labels: {
+                                        color: 'var(--light)', 
+                                        font: { size: 12 }
+                                    }
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Distribuição de Receita por Serviço',
+                                    color: 'var(--primary)',
+                                    font: { size: 16 }
+                                }
+                            }
+                        }
+                    }
+                );
+            } else {
+                container.innerHTML += '<p class="empty-message" style="margin-top: 30px;">Nenhuma receita encontrada para o período.</p>';
+            }
+        }
+
+
+        function pad(n){return String(n).padStart(2,'0');} 
         function isoDateString(d){ return d.toISOString().split('T')[0]; }
 
-        function csvEscape(value){
-            if (value === undefined || value === null) return '';
-            const s = String(value).replace(/"/g,'""');
-            if (s.search(/[",\n]/) >= 0) return '"'+s+'"';
-            return s;
-        }
-
-        // Normaliza nomes de serviços para padronizar entre admin e cliente
-        function normalizarServico(servico) {
-            if (!servico) return '';
-            const svc = String(servico).trim().toUpperCase();
-            
-            // Combos
-            if (svc.includes('COMBO') && svc.includes('CABELO') && svc.includes('BARBA')) {
-                return 'Combo Cabelo e Barba';
-            }
-            // Corte Infantil Autismo
-            if (svc.includes('AUTISMO') || (svc.includes('INFANTIL') && svc.includes('AUTISMO'))) {
-                return 'Corte Infantil - Autismo';
-            }
-            // Corte Infantil (sem autismo)
-            if (svc.includes('INFANTIL') && !svc.includes('AUTISMO')) {
-                return 'Corte Infantil';
-            }
-            // Corte simples
-            if (svc.includes('CORTE') && !svc.includes('INFANTIL')) {
-                return 'Corte';
-            }
-            // Barba
-            if (svc.includes('BARBA')) {
-                return 'Barba';
-            }
-            
-            return String(servico).trim();
-        }
-
-        async function generateReport(period) {
-            const msgEl = document.getElementById('adminReportMsg');
-            msgEl.style.display = 'none';
-
-            // Determina o intervalo [startISO, endISO) dependendo do período
-            const refDate = adminDataInput.value ? new Date(adminDataInput.value + 'T00:00:00') : new Date();
-            let start = new Date(refDate);
-            let end = new Date(refDate);
-
-            if (period === 'weekly') {
-                // início da semana (segunda)
-                const day = start.getDay();
-                const diff = start.getDate() - day + (day === 0 ? -6 : 1);
-                start.setDate(diff); start.setHours(0,0,0,0);
-                end = new Date(start); end.setDate(start.getDate() + 7); end.setHours(0,0,0,0);
-            } else if (period === 'monthly') {
-                start.setDate(1); start.setHours(0,0,0,0);
-                end = new Date(start); end.setMonth(start.getMonth() + 1); end.setHours(0,0,0,0);
-            } else if (period === 'annual') {
-                start.setMonth(0); start.setDate(1); start.setHours(0,0,0,0);
-                end = new Date(start); end.setFullYear(start.getFullYear() + 1); end.setHours(0,0,0,0);
-            } else {
-                alert('Período inválido para relatório.');
-                return;
-            }
-
-            const startISO = isoDateString(start);
-            const endISO = isoDateString(end);
-
+        async function generateReport(period) { 
+            const msgEl = document.getElementById('adminReportMsg'); 
             msgEl.style.display = 'block';
-            msgEl.style.color = '#aaa';
-            msgEl.textContent = `Gerando relatório (${period}) de ${formatarData(startISO)} a ${formatarData(new Date(end - 1).toISOString().split('T')[0])}...`;
+            msgEl.textContent = `Buscando dados de vendas (${period})...`; 
+            
+            const start = new Date();
+            let periodDisplay = '';
 
-            try {
-                const q = query(
-                    collection(db, 'agendamentos'),
-                    where('data', '>=', startISO),
-                    where('data', '<', endISO),
-                    orderBy('data', 'asc'),
-                    orderBy('hora', 'asc')
-                );
-
-                const snap = await getDocs(q);
-                if (snap.empty) {
-                    msgEl.style.color = 'var(--orange)';
-                    msgEl.textContent = 'Nenhum agendamento encontrado para esse período.';
-                    return;
-                }
-
-                // Filtra APENAS agendamentos principais (remove slot extra) e mantém ordem cronológica
-                const mains = [];
-                snap.forEach(docSnap => {
-                    const d = docSnap.data();
-                    // pula documentos de bloqueio de dia
-                    if (d && d.idBloqueio === 'BLOQUEIO_TOTAL') return;
-
-                    // Detecta slot extra por campo servico/nome/parentId
-                    const isExtra = (d && ((d.servico && d.servico.toString().toUpperCase().includes('SLOT_EXTRA')) || (d.nome && d.nome.toString().toUpperCase().includes('SLOT EXTRA')) || d.parentId));
-                    if (isExtra) return; // não incluir slots extras
-
-                    const criado = d.createdAt && typeof d.createdAt === 'string' ? d.createdAt : (d.createdAt && d.createdAt.seconds ? new Date(d.createdAt.seconds*1000).toISOString() : (d.criadoEm ? (d.criadoEm.seconds ? new Date(d.criadoEm.seconds*1000).toISOString() : String(d.criadoEm)) : ''));
-
-                    mains.push({ id: docSnap.id, data: d, criado });
-                });
-
-                if (mains.length === 0) {
-                    msgEl.style.color = 'var(--orange)';
-                    msgEl.textContent = 'Nenhum agendamento principal encontrado para esse período.';
-                    return;
-                }
-
-                // Monta CSV apenas com agendamentos principais e adiciona número de atendimento
-                // Substitui a coluna 'Email' por 'FeitoPor' (Admin / Cliente)
-                const rows = [];
-                rows.push(['Número','Data','Hora','Nome','Serviço','Duração','Preço','Observações','FeitoPor','ID','CriadoEm']);
-
-                mains.forEach((entry, idx) => {
-                    const d = entry.data || {};
-                    // Determina origem: Admin se o email/uid corresponder à allowlist, caso contrário Cliente
-                    const emailNorm = d && d.userEmail ? String(d.userEmail).toLowerCase().trim() : null;
-                    const isAdminOrigin = (emailNorm && ALLOWED_ADMIN_EMAILS_NORMALIZED.includes(emailNorm)) || (d && d.userId && ALLOWED_ADMIN_UIDS.includes(d.userId));
-                    const feitoPor = isAdminOrigin ? 'Admin' : 'Cliente';
-
-                    // Normaliza o nome do serviço
-                    const servicoNormalizado = normalizarServico(d.servico);
-
-                    // Preço pode vir como número ou string; formata para exibição
-                    const precoNum = Number(d.preco) || 0;
-                    const precoFmt = precoNum ? ('R$ ' + precoNum.toFixed(2).replace('.', ',')) : '';
-
-                    rows.push([
-                        String(idx + 1),
-                        d.data || '',
-                        d.hora || '',
-                        d.nome || '',
-                        servicoNormalizado,
-                        d.duracao || '',
-                        precoFmt,
-                        d.observacoes || '',
-                        feitoPor,
-                        entry.id,
-                        entry.criado
-                    ]);
-                });
-
-                // Calcula totais: soma dos preços e taxa de R$0,50 por corte (cada agendamento principal)
-                const feePerCut = 0.50; // R$ 0,50 por corte
-                let totalRevenue = 0;
-                mains.forEach(entry => {
-                    const precoNum = Number(entry.data && entry.data.preco) || 0;
-                    totalRevenue += precoNum;
-                });
-                const totalCuts = mains.length;
-                const totalFee = Number((totalCuts * feePerCut).toFixed(2));
-                const grandTotal = Number((totalRevenue + totalFee).toFixed(2));
-
-                // Adiciona linhas de resumo no final do CSV (mantendo colunas originais)
-                rows.push(['', '', '', 'Total Receita', '', '', (totalRevenue ? ('R$ ' + totalRevenue.toFixed(2).replace('.', ',')) : ''), '', '', '', '']);
-                rows.push(['', '', '', `Taxa R$0,50 por corte (x${totalCuts})`, '', '', (totalFee ? ('R$ ' + totalFee.toFixed(2).replace('.', ',')) : ''), '', '', '', '']);
-                rows.push(['', '', '', 'Total Geral (com taxa)', '', '', (grandTotal ? ('R$ ' + grandTotal.toFixed(2).replace('.', ',')) : ''), '', '', '', '']);
-
-                // Gera PDF usando jsPDF + autoTable (carregados dinamicamente)
-                const pdfFilename = `report-${period}-${startISO}-to-${new Date(end - 1).toISOString().split('T')[0]}.pdf`;
-                try {
-                    // Carrega jsPDF (UMD) via tag <script> para expor em window.jspdf
-                    await new Promise((resolve, reject) => {
-                        const s = document.createElement('script');
-                        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-                        s.onload = resolve;
-                        s.onerror = () => reject(new Error('Falha ao carregar jspdf (UMD)'));
-                        document.head.appendChild(s);
-                    });
-
-                    // Tenta obter o construtor jsPDF a partir das possíveis exposições UMD
-                    let jsPDF = null;
-                    if (window.jspdf) {
-                        jsPDF = window.jspdf.jsPDF || (window.jspdf.default && window.jspdf.default.jsPDF) || window.jspdf.default || window.jspdf;
-                    }
-                    if (!jsPDF && window.jsPDF) jsPDF = window.jsPDF;
-                    if (!jsPDF) throw new Error('jsPDF não encontrado após carregar UMD');
-
-                    // carrega plugin autotable dinamicamente (adiciona globalmente)
-                    await new Promise((resolve, reject) => {
-                        const s = document.createElement('script');
-                        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js';
-                        s.onload = resolve;
-                        s.onerror = () => reject(new Error('Falha ao carregar jspdf-autotable'));
-                        document.head.appendChild(s);
-                    });
-
-                    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-                    const margin = 40;
-                    const pageWidth = doc.internal.pageSize.getWidth();
-
-                    // Cabeçalho estilizado
-                    doc.setFontSize(18);
-                    doc.setTextColor(212, 175, 55);
-                    doc.setFont('helvetica', 'bold');
-                    const title = `LOPES BARBEARIA`;
-                    doc.text(title, pageWidth / 2, 40, { align: 'center' });
-
-                    doc.setFontSize(12);
-                    doc.setTextColor(200);
-                    doc.setFont('helvetica', 'normal');
-                    const subtitle = `Relatório (${period}) — ${formatarData(startISO)} a ${formatarData(new Date(end - 1).toISOString().split('T')[0])}`;
-                    doc.text(subtitle, pageWidth / 2, 60, { align: 'center' });
-
-                    // Linha separadora
-                    doc.setDrawColor(212, 175, 55);
-                    doc.setLineWidth(0.8);
-                    doc.line(margin, 68, pageWidth - margin, 68);
-
-                    // autoTable: usa o primeiro row como header
-                    const header = rows[0];
-                    const body = rows.slice(1);
-
-                    // Para o PDF queremos remover colunas sensíveis/longas: 'ID' e 'CriadoEm'
-                    const indexesToKeep = header.map(h => !(h === 'ID' || h === 'CriadoEm'));
-                    const pdfHeader = header.filter((_, i) => indexesToKeep[i]);
-                    const pdfBody = body.map(row => row.filter((_, i) => indexesToKeep[i]));
-
-                    // Certifica-se que autoTable está disponível; tentar múltiplos locais onde o plugin pode ter sido registrado
-                    if (typeof doc.autoTable !== 'function') {
-                        if (window.jspdf && typeof window.jspdf.autoTable === 'function') {
-                            doc.autoTable = window.jspdf.autoTable;
-                        } else if (window.jspdf && window.jspdf.default && typeof window.jspdf.default.autoTable === 'function') {
-                            doc.autoTable = window.jspdf.default.autoTable;
-                        } else if (window.jspdf && window.jspdf.jsPDF && typeof window.jspdf.jsPDF.autoTable === 'function') {
-                            doc.autoTable = window.jspdf.jsPDF.autoTable;
-                        }
-                    }
-
-                    // Define estilos e alinhamentos (coluna 'Preço' alinhada à direita)
-                    const priceColIndex = pdfHeader.indexOf('Preço');
-
-                    doc.autoTable({
-                        head: [pdfHeader],
-                        body: pdfBody,
-                        startY: 80,
-                        theme: 'striped',
-                        styles: { fontSize: 10, textColor: 40 },
-                        headStyles: { fillColor: [212, 175, 55], textColor: 0 },
-                        columnStyles: priceColIndex !== -1 ? { [priceColIndex]: { halign: 'right' }, 0: { halign: 'center' } } : { 0: { halign: 'center' } },
-                        margin: { left: margin, right: margin },
-                        didDrawPage: (data) => {
-                            // rodapé com numeração de página
-                            const pageCount = doc.getNumberOfPages();
-                            const pageCurrent = doc.internal.getNumberOfPages();
-                            const footerStr = `Página ${doc.internal.getCurrentPageInfo().pageNumber} de ${pageCount}`;
-                            doc.setFontSize(9);
-                            doc.setTextColor(150);
-                            doc.text(footerStr, pageWidth - margin, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
-                        }
-                    });
-
-                    // Adiciona resumo como uma pequena tabela abaixo da autoTable
-                    const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) || 80;
-                    const summaryBody = [
-                        ['Total Receita', `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`],
-                        [`Taxa R$0,50 por corte (x${totalCuts})`, `R$ ${totalFee.toFixed(2).replace('.', ',')}`],
-                        ['Total Geral (com taxa)', `R$ ${grandTotal.toFixed(2).replace('.', ',')}`]
-                    ];
-
-                    doc.autoTable({
-                        head: [['','']],
-                        body: summaryBody,
-                        startY: finalY + 12,
-                        theme: 'plain',
-                        styles: { fontSize: 11 },
-                        columnStyles: { 0: { halign: 'left' }, 1: { halign: 'right' } },
-                        margin: { left: margin, right: margin }
-                    });
-
-                    // Salva o PDF
-                    doc.save(pdfFilename);
-
-                    msgEl.style.color = 'var(--green)';
-                    msgEl.textContent = `Relatório gerado: ${pdfFilename}`;
-                } catch (pdfErr) {
-                    console.warn('Falha ao gerar PDF, gerando CSV como fallback:', pdfErr);
-                    // Fallback para CSV
-                    const csv = rows.map(r => r.map(csvEscape).join(',')).join('\n');
-                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                    const filename = `report-${period}-${startISO}-to-${new Date(end - 1).toISOString().split('T')[0]}.csv`;
-                    const link = document.createElement('a');
-                    const url = URL.createObjectURL(blob);
-                    link.setAttribute('href', url);
-                    link.setAttribute('download', filename);
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-
-                    msgEl.style.color = 'var(--orange)';
-                    msgEl.textContent = `PDF não disponível. CSV gerado: ${filename}`;
-                }
-
-            } catch (e) {
-                console.error('Erro gerando relatório:', e);
-                msgEl.style.color = 'var(--red)';
-                msgEl.textContent = 'Erro ao gerar relatório. Veja o console.';
+            // Lógica para definir o intervalo de datas (já existente e reutilizada)
+            if (period === 'weekly') {
+                periodDisplay = 'Últimos 7 Dias';
+                start.setDate(start.getDate() - 7);
+            } else if (period === 'monthly') {
+                periodDisplay = 'Últimos 30 Dias';
+                start.setDate(start.getDate() - 30);
+            } else if (period === 'annual') {
+                periodDisplay = 'Últimos 365 Dias';
+                start.setDate(start.getDate() - 365);
             }
-        }
+            start.setHours(0, 0, 0, 0);
+            const startISO = isoDateString(start);
+            const end = new Date(); 
+            end.setHours(23, 59, 59, 999);
+            
+            const agendamentosRef = collection(db, "agendamentos");
+            const q = query(agendamentosRef, where("data", ">=", startISO), orderBy("data", "asc"), orderBy("hora", "asc"));
+            
+            try {
+                const snap = await getDocs(q);
+                
+                let totalRevenue = 0; 
+                const serviceRevenue = {}; 
+                const mains = []; // Armazena agendamentos principais
 
-        // Listeners dos botões de relatório
-        document.addEventListener('click', (ev) => {
-            if (!ev.target) return;
-            if (ev.target.id === 'reportWeeklyBtn') { ev.preventDefault(); generateReport('weekly'); }
-            if (ev.target.id === 'reportMonthlyBtn') { ev.preventDefault(); generateReport('monthly'); }
-            if (ev.target.id === 'reportAnnualBtn') { ev.preventDefault(); generateReport('annual'); }
-        });
+                snap.forEach(docSnap => { 
+                    const d = docSnap.data(); 
+                    // pula documentos de bloqueio de dia e slots extras
+                    if (d && (d.idBloqueio === 'BLOQUEIO_TOTAL' || d.parentId || (d.servico && d.servico.toString().toUpperCase().includes('SLOT_EXTRA')))) return;
+                    
+                    const preco = Number(d.preco) || 0;
+                    if (preco > 0) {
+                        totalRevenue += preco;
+                        const servicoNome = normalizarServico(d.servico);
+                        serviceRevenue[servicoNome] = (serviceRevenue[servicoNome] || 0) + preco;
+                    }
+
+                    mains.push({ id: docSnap.id, data: d }); 
+                }); 
+
+                // Transforma o mapa de receitas em lista para o renderer
+                const serviceList = Object.entries(serviceRevenue).map(([servico, total]) => ({ servico, total }));
+                
+                if (mains.length === 0) { 
+                    msgEl.style.color = 'var(--red)'; 
+                    msgEl.textContent = `Nenhum agendamento principal com receita encontrado para o período.`; 
+                    switchToReportView();
+                    renderServiceReports([], 0, periodDisplay);
+                    return; 
+                } 
+
+                // 1. Renderiza o relatório na tela (Prioridade conforme solicitação)
+                switchToReportView();
+                renderServiceReports(serviceList, totalRevenue, periodDisplay);
+                
+                msgEl.style.color = 'var(--green)';
+                msgEl.textContent = `Relatório de ${periodDisplay} carregado na tela.`;
+
+
+            } catch (e) { 
+                console.error('Erro gerando relatório:', e); 
+                msgEl.style.color = 'var(--red)'; 
+                msgEl.textContent = 'Erro ao gerar relatório. Veja o console.'; 
+            } 
+        } 
+
+        // Listeners dos botões de relatório (AGORA CHAMAM A FUNÇÃO QUE RENDERIZA NA TELA)
+        document.addEventListener('click', (ev) => { 
+            if (!ev.target) return; 
+            if (ev.target.id === 'reportWeeklyBtn') { ev.preventDefault(); generateReport('weekly'); } 
+            if (ev.target.id === 'reportMonthlyBtn') { ev.preventDefault(); generateReport('monthly'); } 
+            if (ev.target.id === 'reportAnnualBtn') { ev.preventDefault(); generateReport('annual'); } 
+        }); 
 
     </script>
 </body>

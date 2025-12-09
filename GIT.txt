@@ -1,0 +1,3 @@
+git add .
+git commit -m "feat: Sincronizacao final e correcao de bug do botao"
+git push origin main
