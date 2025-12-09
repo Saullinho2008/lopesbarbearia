@@ -356,7 +356,7 @@
             color: var(--primary);
         }
         
-        /* Estilos do Relatório (NOVO) */
+        /* Estilos do Relatório */
         #reportView {
             padding: 20px;
             background-color: var(--gray);
@@ -370,6 +370,16 @@
             border: 2px solid var(--green);
             border-radius: 5px;
             background-color: #213c21;
+        }
+        
+        .total-taxa {
+            text-align: center;
+            padding: 15px;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            border-radius: 5px;
+            background-color: #3a3521;
+            margin-top: 15px;
         }
 
         table {
@@ -396,13 +406,85 @@
         tr:nth-child(even) {
             background-color: #3a3a3a;
         }
-
+        
+        .report-controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #444;
+        }
+        
+        .report-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .report-buttons button {
+            flex: 1;
+            padding: 12px;
+            background: #444;
+            color: var(--light);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .report-buttons button:hover {
+            background: var(--primary);
+            color: black;
+        }
+        
+        .report-period {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: var(--light);
+            border-bottom: 1px solid #444;
+            padding-bottom: 8px;
+        }
+        
+        .dev-tax-info {
+            background-color: #3a3521;
+            border: 1px solid var(--primary);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        
+        .dev-tax-info h4 {
+            color: var(--primary);
+            margin-top: 0;
+        }
+        
+        .dev-tax-info table {
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
 
         @media (max-width: 600px) { 
             .agendamento-item { flex-direction: column; align-items: flex-start; }
             .agendamento-actions { margin-top: 10px; margin-left: 0; width: 100%; justify-content: space-between; }
             .cancel-admin-btn { width: 100%; }
             .admin-actions { flex-direction: column; }
+            .report-buttons { flex-direction: column; }
+        }
+        
+        /* Estilo para a checkbox de cortesia */
+        .cortesia-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            color: var(--primary);
+            font-weight: bold;
+        }
+        .cortesia-checkbox input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--primary); /* Cor da checkbox */
         }
     </style>
     
@@ -481,16 +563,14 @@
                             <option value="17:40">17:40</option>
                             <option value="18:20">18:20</option>
                         </select>
-                        <div style="display:flex; gap:8px;">
+                        <div class="cortesia-checkbox">
+                             <input type="checkbox" id="adminCortesia" name="cortesia">
+                             <label for="adminCortesia">Agendar como CORTESIA (Preço R$ 0,00)</label>
+                        </div>
+                        <div style="display:flex; gap:8px; margin-top:12px;">
                             <button id="adminAgendarBtn" style="flex:1; background:var(--primary); color:black; border:none; padding:10px; border-radius:5px;">Agendar</button>
                         </div>
                         <p id="adminAgendarMsg" style="margin:8px 0 0 0; color:#aaa; font-size:0.9em; display:none;"></p>
-                        <div style="display:flex; gap:8px; margin-top:8px;">
-                            <button id="reportWeeklyBtn" style="flex:1; background:#444; color:var(--light); border:none; padding:8px; border-radius:5px;">Relatório Semanal</button>
-                            <button id="reportMonthlyBtn" style="flex:1; background:#444; color:var(--light); border:none; padding:8px; border-radius:5px;">Relatório Mensal</button>
-                            <button id="reportAnnualBtn" style="flex:1; background:#444; color:var(--light); border:none; padding:8px; border-radius:5px;">Relatório Anual</button>
-                        </div>
-                        <p id="adminReportMsg" style="margin:6px 0 0 0; color:#aaa; font-size:0.85em; display:none;"></p>
                     </div>
 
                     <div class="admin-actions">
@@ -524,7 +604,23 @@
             </div>
             
             <div id="reportView" style="display: none;">
+                <div class="report-controls">
+                    <h3 style="color: var(--primary); margin-top: 0;">📊 Gerar Relatório de Vendas</h3>
+                    <p style="color: #ccc; margin-bottom: 15px;">Selecione o período para análise de receita:</p>
+                    
+                    <div class="report-buttons">
+                        <button id="reportWeeklyBtn2">Relatório Semanal</button>
+                        <button id="reportMonthlyBtn2">Relatório Mensal</button>
+                        <button id="reportAnnualBtn2">Relatório Anual</button>
+                    </div>
+                    
+                    <p id="adminReportMsg" style="margin:12px 0 0 0; color:#aaa; font-size:0.85em; display:none;"></p>
                 </div>
+                
+                <div id="reportResults">
+                    <p class="empty-message">Selecione um período para gerar o relatório.</p>
+                </div>
+            </div>
             
         </div>
         
@@ -564,13 +660,18 @@
         // CONFIGURE AQUI: lista de e-mails (ou UIDs) que podem acessar o painel de admin
         const ALLOWED_ADMIN_EMAILS = [
             'saullinho2008@gmail.com',
-            'saullogabriell18@hotmail.com',
+            'saullogabriel18@hotmail.com',
             'saullogabriel182@outlook.com'
         ];
         
         const ALLOWED_ADMIN_UIDS = [
             // 'firebase-uid-aqui'
         ];
+        
+        // Admin que precisa ver a taxa (você como desenvolvedor)
+        const SAULLINHO_SPECIAL_ADMIN = 'saullinho2008@gmail.com'; 
+        // Taxa por corte (R$ 0,50 por cada corte ou combo)
+        const CORTE_TAX = 0.50; 
 
         // Normaliza a lista de e-mails para comparação (lowercase + trim)
         const ALLOWED_ADMIN_EMAILS_NORMALIZED = ALLOWED_ADMIN_EMAILS.map(e => String(e).toLowerCase().trim());
@@ -588,6 +689,8 @@
             }
             return false;
         }
+
+        // ... (resto do código de variáveis e funções de utilidade) ...
 
         // ============================================================
         // Variáveis Globais e Mapeamento de DOM
@@ -613,10 +716,10 @@
         // Visualização
         const viewDailyBtn = document.getElementById('viewDailyBtn');
         const viewWeeklyBtn = document.getElementById('viewWeeklyBtn');
-        const viewReportBtn = document.getElementById('viewReportBtn'); // NOVO
+        const viewReportBtn = document.getElementById('viewReportBtn'); 
         const dailyView = document.getElementById('dailyView');
         const weeklyView = document.getElementById('weeklyView');
-        const reportView = document.getElementById('reportView'); // NOVO
+        const reportView = document.getElementById('reportView'); 
         const weeklyAppointmentsContainer = document.getElementById('weeklyAppointmentsContainer');
         const prevWeekBtn = document.getElementById('prevWeekBtn');
         const nextWeekBtn = document.getElementById('nextWeekBtn');
@@ -626,12 +729,25 @@
         const clientDetailsModal = document.getElementById('clientDetailsModal');
         const modalDetailsContent = document.getElementById('modalDetailsContent');
         
+        // Relatórios
+        const reportResults = document.getElementById('reportResults');
+        const adminReportMsg = document.getElementById('adminReportMsg');
+        
+        // Botões de relatório na aba de relatórios
+        const reportWeeklyBtn2 = document.getElementById('reportWeeklyBtn2');
+        const reportMonthlyBtn2 = document.getElementById('reportMonthlyBtn2');
+        const reportAnnualBtn2 = document.getElementById('reportAnnualBtn2');
+        
+        // Cortesia
+        const adminCortesiaCheckbox = document.getElementById('adminCortesia'); // ✂️ Cortesia DOM
+
+        
         let currentUser = null; 
         let currentWeekStart = new Date(); 
         let agendamentosDiaCache = []; 
 
         // ============================================================
-        // FUNÇÕES DE UTILIDADE
+        // FUNÇÕES DE UTILIDADE (MANTIDAS)
         // ============================================================
         function formatarData(dataISO) {
              if (typeof dataISO === 'string' && dataISO.includes('-')) {
@@ -688,7 +804,9 @@
                     else if (d.criadoEm) criado = String(d.criadoEm);
                 }
 
+                const isCortesia = d.preco === 0 && d.observacoes && d.observacoes.includes('Cortesia'); // ✂️ Cortesia Check
                 const obs = d.observacoes ? `<p><strong>Observações:</strong> ${d.observacoes}</p>` : '';
+                const precoDisplay = isCortesia ? `<span style="color: var(--red);">CORTESIA</span>` : (d.preco !== undefined ? ('R$ ' + Number(d.preco).toFixed(2).replace('.', ',')) : ''); // ✂️ Cortesia Display
 
                 const emailNorm = d && d.userEmail ? String(d.userEmail).toLowerCase().trim() : null;
                 const isAdminOrigin = (emailNorm && ALLOWED_ADMIN_EMAILS_NORMALIZED.includes(emailNorm)) || (d && d.userId && ALLOWED_ADMIN_UIDS.includes(d.userId));
@@ -698,7 +816,7 @@
                     <p><strong>Nome:</strong> ${d.nome || ''}</p>
                     <p><strong>Serviço:</strong> ${d.servico || ''}</p>
                     <p><strong>Data:</strong> ${d.data ? formatarData(d.data) : ''} <strong>Hora:</strong> ${d.hora || ''}</p>
-                    <p><strong>Duração:</strong> ${d.duracao || ''} <strong>Preço:</strong> ${d.preco !== undefined ? ('R$ ' + Number(d.preco).toFixed(2).replace('.', ',')) : ''}</p>
+                    <p><strong>Duração:</strong> ${d.duracao || ''} <strong>Preço:</strong> ${precoDisplay}</p>
                     ${obs}
                     <p><strong>Feito por:</strong> ${feitoPor}${(!isAdminOrigin && d.userEmail) ? ' (' + d.userEmail + ')' : ''}</p>
                     <p><strong>ID:</strong> ${snap.id}</p>
@@ -763,15 +881,15 @@
             reportView.style.display = 'block';
             dailyView.style.display = 'none';
             weeklyView.style.display = 'none';
-            reportView.innerHTML = '<p class="empty-message">Selecione um período (Semanal/Mensal/Anual) no painel de controle.</p>';
+            reportResults.innerHTML = '<p class="empty-message">Selecione um período para gerar o relatório.</p>';
         }
 
         viewDailyBtn.addEventListener('click', switchToDailyView);
         viewWeeklyBtn.addEventListener('click', switchToWeeklyView);
-        viewReportBtn.addEventListener('click', switchToReportView); // NOVO LISTENER
+        viewReportBtn.addEventListener('click', switchToReportView); 
         
         // ============================================================
-        // CONTROLES DE NAVEGAÇÃO SEMANAL
+        // CONTROLES DE NAVEGAÇÃO SEMANAL (MANTIDOS)
         // ============================================================
         
         prevWeekBtn.addEventListener('click', () => {
@@ -790,7 +908,7 @@
 
 
         // ============================================================
-        // LÓGICA DE AUTENTICAÇÃO DO ADMIN
+        // LÓGICA DE AUTENTICAÇÃO DO ADMIN (MANTIDA)
         // ============================================================
 
         const horariosPossiveis = [
@@ -820,6 +938,7 @@
             const nome = document.getElementById('adminNomeCliente').value.trim();
             const servicoCompleto = document.getElementById('adminServicoSelecionado').value;
             const hora = document.getElementById('adminHorarioSelecionado').value;
+            const isCortesia = adminCortesiaCheckbox.checked; // ✂️ Cortesia Check
             const msgEl = document.getElementById('adminAgendarMsg');
             msgEl.style.display = 'none';
 
@@ -847,6 +966,14 @@
             else if (servicoCompleto.includes("Corte Infantil (Autismo)")) { duracao = 80; preco = 70.00; }
             else if (servicoCompleto.includes("Corte Infantil")) { preco = 40.00; }
             else if (servicoCompleto.includes("Corte")) { preco = 50.00; }
+
+            // ✂️ MODIFICAÇÃO: Cortesia - Zera o preço e ajusta observação
+            let observacoes = 'Agendado pelo Admin';
+            if (isCortesia) {
+                preco = 0;
+                observacoes = 'Agendado como Cortesia (Preço R$ 0,00)';
+            }
+            // FIM ✂️ MODIFICAÇÃO: Cortesia
 
             // Lógica de 2 slots
             const isDoisSlots = duracao === 80;
@@ -880,7 +1007,7 @@
                     hora: hora, 
                     duracao: duracao + ' min', 
                     preco: preco, 
-                    observacoes: 'Agendado pelo Admin', 
+                    observacoes: observacoes, // Usa a nova observação
                     userId: currentUser ? currentUser.uid : null, 
                     userEmail: currentUser ? currentUser.email : null, 
                     createdAt: new Date().toISOString() 
@@ -895,7 +1022,7 @@
                         hora: proximo, 
                         duracao: '40 min', 
                         preco: 0, 
-                        observacoes: 'Slot extra gerado pelo admin para complementar serviço de 80 min.', 
+                        observacoes: 'Slot extra gerado pelo admin para complementar serviço de 80 min.' + (isCortesia ? ' (Cortesia)' : ''), // Adiciona observação de Cortesia no slot extra
                         userId: currentUser ? currentUser.uid : null, 
                         userEmail: currentUser ? currentUser.email : null, 
                         createdAt: new Date().toISOString(), 
@@ -905,12 +1032,13 @@
                 
                 msgEl.style.display = 'block';
                 msgEl.style.color = 'var(--green)';
-                msgEl.textContent = `Agendamento de ${nome} salvo para ${formatarData(data)} às ${hora}.`;
+                msgEl.textContent = `Agendamento de ${nome} salvo para ${formatarData(data)} às ${hora}. ${isCortesia ? '(Cortesia - R$ 0,00)' : ''}`;
 
                 // Recarrega a agenda do dia
                 loadAgenda(data); 
-                // Limpa campos
+                // Limpa campos e checkbox
                 document.getElementById('adminNomeCliente').value = '';
+                adminCortesiaCheckbox.checked = false; // ✂️ Cortesia Limpa
                 
             } catch (e) {
                 console.error('Erro ao criar agendamento pelo admin:', e);
@@ -1054,7 +1182,7 @@
         }); 
         
         // ============================================================
-        // LÓGICA DE CARREGAMENTO DA AGENDA DIÁRIA 
+        // LÓGICA DE CARREGAMENTO DA AGENDA DIÁRIA (MANTIDA)
         // ============================================================
         adminDataInput.addEventListener('change', function() { 
             if (currentUser) { 
@@ -1119,17 +1247,21 @@
                     // Verifica se o agendamento é o slot principal de um Combo
                     const isComboPrincipal = (agendamento.duracao && agendamento.duracao.toString().includes('80') && !agendamento.parentId);
                     const isSlotExtra = agendamento.parentId || (agendamento.servico && agendamento.servico.toString().toUpperCase().includes('SLOT_EXTRA'));
+                    // ✂️ Cortesia Check para Lista
+                    const isCortesia = agendamento.preco === 0 && agendamento.observacoes && agendamento.observacoes.includes('Cortesia');
 
                     const div = document.createElement('div');
-                    div.className = `agendamento-item clickable ${isSlotExtra ? 'slot-extra' : ''}`;
+                    div.className = `agendamento-item clickable ${isSlotExtra ? 'slot-extra' : ''} ${isCortesia ? 'cortesia-item' : ''}`; // Adiciona classe para cortesia
                     div.setAttribute('onclick', `openModal('${agendamento.id}')`);
+                    
+                    const precoDisplay = isCortesia ? `<span style="color: var(--red); font-weight: bold;">CORTESIA</span>` : formatarPreco(agendamento.preco);
                     
                     const infoHTML = `
                         <p style="font-weight: bold;"> 
                             ⏰ ${agendamento.hora}h - <span style="color: var(--primary);">👤 ${agendamento.nome}</span> ${isSlotExtra ? '(Continuação)' : ''} 
                         </p> 
                         <p> 
-                            ✂️ ${agendamento.servico} | ${formatarPreco(agendamento.preco)}
+                            ✂️ ${agendamento.servico} | ${precoDisplay}
                         </p> 
                         <p style="font-size: 0.9em; color: #ccc;"> 
                             📧 ${agendamento.userEmail} ${agendamento.observacoes ? ` | Obs: ${agendamento.observacoes}` : ''} 
@@ -1151,7 +1283,7 @@
         } 
         
         // ============================================================
-        // LÓGICA DE BLOQUEIO / FECHAMENTO DE DIA 
+        // LÓGICA DE BLOQUEIO / FECHAMENTO DE DIA (MANTIDA)
         // ============================================================
         closeDayBtn.addEventListener('click', async () => { 
             const data = adminDataInput.value; 
@@ -1191,7 +1323,7 @@
         }); 
 
         // ============================================================
-        // LÓGICA DE CANCELAMENTO
+        // LÓGICA DE CANCELAMENTO (MANTIDA)
         // ============================================================
         window.cancelarAgendamentoAdmin = async function(id, data, hora, isComboPrincipal) { 
             closeModal();
@@ -1222,7 +1354,7 @@
         } 
 
         // ============================================================
-        // LÓGICA DE AGENDAMENTOS SEMANAIS
+        // LÓGICA DE AGENDAMENTOS SEMANAIS (MANTIDA)
         // ============================================================
         async function loadWeeklyAgenda(startOfWeekDate) {
             weeklyAppointmentsContainer.innerHTML = '<p class="empty-message" style="color:var(--primary);">Buscando agendamentos semanais...</p>';
@@ -1286,14 +1418,17 @@
                     } else {
                         dayAppointments.forEach(agendamento => {
                             const isSlotExtra = agendamento.parentId || (agendamento.servico && agendamento.servico.toString().toUpperCase().includes('SLOT_EXTRA'));
+                            const isCortesia = agendamento.preco === 0 && agendamento.observacoes && agendamento.observacoes.includes('Cortesia'); // ✂️ Cortesia Check
                             const servicoCurto = agendamento.servico.split('(')[0].trim();
-
+                            const precoDisplay = isCortesia ? 'CORTESIA' : formatarPreco(agendamento.preco);
+                            const corBorda = isCortesia ? 'var(--red)' : (isSlotExtra ? '#585800' : 'var(--primary)');
+                            
                             dayContent += `
-                                <div class="agendamento-item ${isSlotExtra ? 'slot-extra' : ''}" onclick="openModal('${agendamento.id}')" style="margin-bottom: 5px; border-left-color: ${isSlotExtra ? '#585800' : 'var(--primary)'};">
+                                <div class="agendamento-item ${isSlotExtra ? 'slot-extra' : ''}" onclick="openModal('${agendamento.id}')" style="margin-bottom: 5px; border-left-color: ${corBorda};">
                                     <p style="margin: 0;">
                                         <span style="font-weight: bold;">${agendamento.hora}h</span> | 
                                         ${agendamento.nome} - 
-                                        ${servicoCurto}
+                                        ${servicoCurto} (${precoDisplay})
                                     </p>
                                 </div>
                             `;
@@ -1316,7 +1451,7 @@
         }
         
         // ============================================================
-        // LÓGICA DE RELATÓRIOS (NOVO)
+        // LÓGICA DE RELATÓRIOS (NOVO COM TAXA E RESTRIÇÃO)
         // ============================================================
 
         function normalizarServico(servico) { 
@@ -1333,109 +1468,179 @@
              return svc.split(' - ')[0].trim();
         }
 
-        function renderServiceReports(serviceList, totalRevenue, periodDisplay) {
-            reportView.innerHTML = `
-                <h2 style="color: var(--primary); margin-bottom: 20px;">📊 Relatório de Vendas: ${periodDisplay}</h2>
-                <div id="report-container"></div>
-            `;
-            const container = document.getElementById('report-container');
-
-            // 1. Total Geral
-            container.innerHTML += `
-                <div class="total-geral">
-                    VALOR TOTAL DE RECEITA: ${formatarPreco(totalRevenue)}
+        function renderServiceReports(serviceList, totalRevenue, periodDisplay, isTaxIncluded, taxData) {
+            
+            reportResults.innerHTML = '';
+            
+            let reportHTML = `
+                <div class="report-period">
+                    <h2 style="color: var(--primary); margin-bottom: 5px;">📊 Relatório de Vendas: ${periodDisplay}</h2>
                 </div>
             `;
 
-            // Preparar dados para Tabela e Gráfico
-            let tableHTML = `
-                <h3 style="margin-top: 20px; color: var(--light); border-bottom: 1px dashed #444; padding-bottom: 5px;">Resumo Detalhado por Serviço</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Serviço</th>
-                            <th>Total Vendido</th>
-                            <th>Participação (%)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            // 1. Total Geral
+            reportHTML += `
+                <div class="total-geral">
+                    <h3 style="margin: 0 0 5px 0;">💰 VALOR TOTAL DE RECEITA</h3>
+                    <div style="font-size: 1.5em; font-weight: bold;">${formatarPreco(totalRevenue)}</div>
+                </div>
             `;
-            
-            const chartLabels = [];
-            const chartData = [];
-            const chartColors = ['#d4af37', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#e67e22', '#1abc9c'];
-            let colorIndex = 0;
 
-            // Ordena por maior total primeiro e itera
-            serviceList.sort((a, b) => b.total - a.total); 
-
-            serviceList.forEach(item => {
-                const percentual = ((item.total / totalRevenue) * 100).toFixed(1);
-                const color = chartColors[colorIndex % chartColors.length];
-                colorIndex++;
-
-                // Tabela
-                tableHTML += `
-                    <tr>
-                        <td>${item.servico}</td>
-                        <td>${formatarPreco(item.total)}</td>
-                        <td>${percentual}%</td>
-                    </tr>
-                `;
-
-                // Gráfico
-                chartLabels.push(`${item.servico} (${percentual}%)`);
-                chartData.push(item.total);
-            });
-
-            tableHTML += '</tbody></table>';
-            container.innerHTML += tableHTML;
-
-            // 2. Gráfico de Pizza
+            // 2. Tabela de serviços
             if (serviceList.length > 0) {
-                // Container do Canvas
-                const canvasContainer = document.createElement('div');
-                canvasContainer.style.maxWidth = '450px';
-                canvasContainer.style.margin = '40px auto 10px auto';
-                canvasContainer.innerHTML = '<canvas id="pieChart"></canvas>';
-                container.appendChild(canvasContainer);
+                reportHTML += `
+                    <h3 style="margin-top: 20px; color: var(--light); border-bottom: 1px dashed #444; padding-bottom: 5px;">Resumo Detalhado por Serviço</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Serviço</th>
+                                <th>Total Vendido</th>
+                                <th>Participação (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
                 
+                const chartLabels = [];
+                const chartData = [];
+                const chartColors = ['#d4af37', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#e67e22', '#1abc9c'];
+                let colorIndex = 0;
+
+                // Ordena por maior total primeiro e itera
+                serviceList.sort((a, b) => b.total - a.total); 
+
+                serviceList.forEach(item => {
+                    // Ignora serviços com receita zero (como slots extras ou cortesias)
+                    if (item.total <= 0) return;
+                    
+                    const percentual = ((item.total / totalRevenue) * 100).toFixed(1);
+                    const color = chartColors[colorIndex % chartColors.length];
+                    colorIndex++;
+
+                    // Tabela
+                    reportHTML += `
+                        <tr>
+                            <td>${item.servico}</td>
+                            <td>${formatarPreco(item.total)}</td>
+                            <td>${percentual}%</td>
+                        </tr>
+                    `;
+
+                    // Gráfico
+                    chartLabels.push(`${item.servico} (${percentual}%)`);
+                    chartData.push(item.total);
+                });
+
+                reportHTML += '</tbody></table>';
+
+                // 3. Gráfico de Pizza
+                reportHTML += `
+                    <div style="max-width: 450px; margin: 40px auto 10px auto;">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                `;
+                
+                // 4. Seção especial para o desenvolvedor (somente para você)
+                if (isTaxIncluded && taxData) {
+                    reportHTML += `
+                        <div class="dev-tax-info">
+                            <h4>💸 TAXA DO DESENVOLVEDOR (${SAULLINHO_SPECIAL_ADMIN})</h4>
+                            <p>Taxa de R$ ${CORTE_TAX.toFixed(2).replace('.', ',')} por cada Corte ou Combo realizado.</p>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Total de Cortes/Combos no período:</td>
+                                        <td>${taxData.totalCortes} serviços</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Taxa por serviço (corte/combo):</td>
+                                        <td>${formatarPreco(CORTE_TAX)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>TOTAL DA TAXA PARA O DESENVOLVEDOR:</strong></td>
+                                        <td><strong>${formatarPreco(taxData.totalTax)}</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                // Adiciona o total com a taxa do desenvolvedor (se aplicável)
+                if (isTaxIncluded && taxData) {
+                    reportHTML += `
+                        <div class="total-taxa">
+                            <h3 style="margin: 0 0 5px 0;">💰 TOTAL DA TAXA DO DESENVOLVEDOR</h3>
+                            <div style="font-size: 1.5em; font-weight: bold;">${formatarPreco(taxData.totalTax)}</div>
+                            <p style="margin: 5px 0 0 0; font-size: 0.9em;">(Baseado em ${taxData.totalCortes} cortes/combos x R$ ${CORTE_TAX.toFixed(2).replace('.', ',')})</p>
+                        </div>
+                    `;
+                }
+
+                reportResults.innerHTML = reportHTML;
+
                 // Renderiza o Chart.js
-                new Chart(
-                    document.getElementById('pieChart'),
-                    {
-                        type: 'pie',
-                        data: {
-                            labels: chartLabels,
-                            datasets: [{
-                                label: 'Vendas por Serviço (R$)',
-                                data: chartData,
-                                backgroundColor: chartColors.slice(0, serviceList.length), 
-                                hoverOffset: 4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                legend: {
-                                    position: 'right',
-                                    labels: {
-                                        color: 'var(--light)', 
-                                        font: { size: 12 }
-                                    }
+                setTimeout(() => {
+                    // Filtra para garantir que só serviços com receita positiva entrem no gráfico
+                    const chartableServiceList = serviceList.filter(item => item.total > 0);
+
+                    if (chartableServiceList.length > 0) {
+                        // Re-popula labels e data com os dados filtrados e re-calcula a porcentagem
+                        const finalChartLabels = [];
+                        const finalChartData = [];
+                        const totalReceitaFiltrada = chartableServiceList.reduce((sum, item) => sum + item.total, 0);
+
+                        chartableServiceList.forEach(item => {
+                            const percentual = ((item.total / totalReceitaFiltrada) * 100).toFixed(1);
+                            finalChartLabels.push(`${item.servico} (${percentual}%)`);
+                            finalChartData.push(item.total);
+                        });
+
+
+                        new Chart(
+                            document.getElementById('pieChart'),
+                            {
+                                type: 'pie',
+                                data: {
+                                    labels: finalChartLabels,
+                                    datasets: [{
+                                        label: 'Vendas por Serviço (R$)',
+                                        data: finalChartData,
+                                        backgroundColor: chartColors.slice(0, finalChartData.length), 
+                                        hoverOffset: 4
+                                    }]
                                 },
-                                title: {
-                                    display: true,
-                                    text: 'Distribuição de Receita por Serviço',
-                                    color: 'var(--primary)',
-                                    font: { size: 16 }
+                                options: {
+                                    responsive: true,
+                                    plugins: {
+                                        legend: {
+                                            position: 'right',
+                                            labels: {
+                                                color: 'var(--light)', 
+                                                font: { size: 12 }
+                                            }
+                                        },
+                                        title: {
+                                            display: true,
+                                            text: 'Distribuição de Receita por Serviço',
+                                            color: 'var(--primary)',
+                                            font: { size: 16 }
+                                        }
+                                    }
                                 }
                             }
-                        }
+                        );
                     }
-                );
+                }, 100);
+
             } else {
-                container.innerHTML += '<p class="empty-message" style="margin-top: 30px;">Nenhuma receita encontrada para o período.</p>';
+                reportResults.innerHTML = '<p class="empty-message" style="margin-top: 30px;">Nenhuma receita encontrada para o período.</p>';
             }
         }
 
@@ -1444,14 +1649,13 @@
         function isoDateString(d){ return d.toISOString().split('T')[0]; }
 
         async function generateReport(period) { 
-            const msgEl = document.getElementById('adminReportMsg'); 
-            msgEl.style.display = 'block';
-            msgEl.textContent = `Buscando dados de vendas (${period})...`; 
+            adminReportMsg.style.display = 'block';
+            adminReportMsg.textContent = `Buscando dados de vendas (${period})...`; 
             
             const start = new Date();
             let periodDisplay = '';
 
-            // Lógica para definir o intervalo de datas (já existente e reutilizada)
+            // Lógica para definir o intervalo de datas
             if (period === 'weekly') {
                 periodDisplay = 'Últimos 7 Dias';
                 start.setDate(start.getDate() - 7);
@@ -1470,12 +1674,17 @@
             const agendamentosRef = collection(db, "agendamentos");
             const q = query(agendamentosRef, where("data", ">=", startISO), orderBy("data", "asc"), orderBy("hora", "asc"));
             
+            // Checa se o usuário atual é o admin especial (você)
+            const isAdminSpecial = currentUser && currentUser.email.toLowerCase() === SAULLINHO_SPECIAL_ADMIN; 
+
             try {
                 const snap = await getDocs(q);
                 
                 let totalRevenue = 0; 
                 const serviceRevenue = {}; 
-                const mains = []; // Armazena agendamentos principais
+                const mains = []; 
+                let totalCortes = 0; // Contador de cortes/combos para a taxa
+                let totalTax = 0; // Total da taxa do desenvolvedor
 
                 snap.forEach(docSnap => { 
                     const d = docSnap.data(); 
@@ -1483,48 +1692,75 @@
                     if (d && (d.idBloqueio === 'BLOQUEIO_TOTAL' || d.parentId || (d.servico && d.servico.toString().toUpperCase().includes('SLOT_EXTRA')))) return;
                     
                     const preco = Number(d.preco) || 0;
-                    if (preco > 0) {
-                        totalRevenue += preco;
-                        const servicoNome = normalizarServico(d.servico);
-                        serviceRevenue[servicoNome] = (serviceRevenue[servicoNome] || 0) + preco;
+                    const servicoNome = normalizarServico(d.servico);
+
+                    // Conta cortes/combos para a taxa (só cortes e combos pagam taxa)
+                    const isCorteOuCombo = servicoNome.includes('Corte') || servicoNome.includes('Combo');
+                    
+                    if (isCorteOuCombo) {
+                        totalCortes++;
+                        if (isAdminSpecial) {
+                            totalTax += CORTE_TAX;
+                        }
                     }
 
+                    if (preco > 0) {
+                        totalRevenue += preco;
+                        serviceRevenue[servicoNome] = (serviceRevenue[servicoNome] || 0) + preco;
+                    }
+                    
                     mains.push({ id: docSnap.id, data: d }); 
                 }); 
+
+                // ✂️ MODIFICAÇÃO: Taxa Removida da Receita Total
+                // A Taxa do Desenvolvedor (totalTax) NÃO será mais adicionada ao totalRevenue.
+                // A linha que fazia isso foi removida:
+                // if (isAdminSpecial) { totalRevenue += totalTax; } 
+                // A linha que adicionava ao serviceRevenue também foi removida,
+                // mas a taxa ainda será calculada e exibida na seção 'dev-tax-info' 
+                // (por isso mantemos a lógica de 'totalCortes' e 'totalTax').
+                // FIM ✂️ MODIFICAÇÃO: Taxa Removida da Receita Total
+                
 
                 // Transforma o mapa de receitas em lista para o renderer
                 const serviceList = Object.entries(serviceRevenue).map(([servico, total]) => ({ servico, total }));
                 
                 if (mains.length === 0) { 
-                    msgEl.style.color = 'var(--red)'; 
-                    msgEl.textContent = `Nenhum agendamento principal com receita encontrado para o período.`; 
-                    switchToReportView();
-                    renderServiceReports([], 0, periodDisplay);
+                    adminReportMsg.style.color = 'var(--red)'; 
+                    adminReportMsg.textContent = `Nenhum agendamento principal com receita encontrado para o período.`; 
+                    reportResults.innerHTML = '<p class="empty-message">Nenhuma receita encontrada para o período.</p>';
                     return; 
                 } 
 
-                // 1. Renderiza o relatório na tela (Prioridade conforme solicitação)
-                switchToReportView();
-                renderServiceReports(serviceList, totalRevenue, periodDisplay);
+                // 1. Renderiza o relatório na tela 
+                const taxData = {
+                    totalCortes: totalCortes,
+                    totalTax: totalTax
+                };
+                renderServiceReports(serviceList, totalRevenue, periodDisplay, isAdminSpecial, taxData); 
                 
-                msgEl.style.color = 'var(--green)';
-                msgEl.textContent = `Relatório de ${periodDisplay} carregado na tela.`;
-
+                adminReportMsg.style.color = 'var(--green)';
+                adminReportMsg.textContent = `Relatório de ${periodDisplay} gerado com sucesso! ${totalCortes} cortes/combos encontrados.`;
 
             } catch (e) { 
                 console.error('Erro gerando relatório:', e); 
-                msgEl.style.color = 'var(--red)'; 
-                msgEl.textContent = 'Erro ao gerar relatório. Veja o console.'; 
+                adminReportMsg.style.color = 'var(--red)'; 
+                adminReportMsg.textContent = 'Erro ao gerar relatório. Veja o console.'; 
             } 
         } 
 
-        // Listeners dos botões de relatório (AGORA CHAMAM A FUNÇÃO QUE RENDERIZA NA TELA)
-        document.addEventListener('click', (ev) => { 
-            if (!ev.target) return; 
-            if (ev.target.id === 'reportWeeklyBtn') { ev.preventDefault(); generateReport('weekly'); } 
-            if (ev.target.id === 'reportMonthlyBtn') { ev.preventDefault(); generateReport('monthly'); } 
-            if (ev.target.id === 'reportAnnualBtn') { ev.preventDefault(); generateReport('annual'); } 
-        }); 
+        // Listeners dos botões de relatório na aba de relatórios
+        reportWeeklyBtn2.addEventListener('click', () => {
+            generateReport('weekly');
+        });
+        
+        reportMonthlyBtn2.addEventListener('click', () => {
+            generateReport('monthly');
+        });
+        
+        reportAnnualBtn2.addEventListener('click', () => {
+            generateReport('annual');
+        });
 
     </script>
 </body>
