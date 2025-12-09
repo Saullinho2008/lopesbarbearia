@@ -1468,7 +1468,7 @@
                 rows.push(['Número','Data','Hora','Nome','Serviço','Duração','Preço','Observações','FeitoPor','ID','CriadoEm']);
 
                 mains.forEach((entry, idx) => {
-                    const d = entry.data;
+                    const d = entry.data || {};
                     // Determina origem: Admin se o email/uid corresponder à allowlist, caso contrário Cliente
                     const emailNorm = d && d.userEmail ? String(d.userEmail).toLowerCase().trim() : null;
                     const isAdminOrigin = (emailNorm && ALLOWED_ADMIN_EMAILS_NORMALIZED.includes(emailNorm)) || (d && d.userId && ALLOWED_ADMIN_UIDS.includes(d.userId));
@@ -1477,6 +1477,10 @@
                     // Normaliza o nome do serviço
                     const servicoNormalizado = normalizarServico(d.servico);
 
+                    // Preço pode vir como número ou string; formata para exibição
+                    const precoNum = Number(d.preco) || 0;
+                    const precoFmt = precoNum ? ('R$ ' + precoNum.toFixed(2).replace('.', ',')) : '';
+
                     rows.push([
                         String(idx + 1),
                         d.data || '',
@@ -1484,7 +1488,7 @@
                         d.nome || '',
                         servicoNormalizado,
                         d.duracao || '',
-                        (d.preco !== undefined && d.preco !== null) ? d.preco : '',
+                        precoFmt,
                         d.observacoes || '',
                         feitoPor,
                         entry.id,
@@ -1492,23 +1496,157 @@
                     ]);
                 });
 
-                // Monta CSV
-                const csv = rows.map(r => r.map(csvEscape).join(',')).join('\n');
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                const filename = `report-${period}-${startISO}-to-${new Date(end - 1).toISOString().split('T')[0]}.csv`;
+                // Calcula totais: soma dos preços e taxa de R$0,50 por corte (cada agendamento principal)
+                const feePerCut = 0.50; // R$ 0,50 por corte
+                let totalRevenue = 0;
+                mains.forEach(entry => {
+                    const precoNum = Number(entry.data && entry.data.preco) || 0;
+                    totalRevenue += precoNum;
+                });
+                const totalCuts = mains.length;
+                const totalFee = Number((totalCuts * feePerCut).toFixed(2));
+                const grandTotal = Number((totalRevenue + totalFee).toFixed(2));
 
-                // Força download
-                const link = document.createElement('a');
-                const url = URL.createObjectURL(blob);
-                link.setAttribute('href', url);
-                link.setAttribute('download', filename);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
+                // Adiciona linhas de resumo no final do CSV (mantendo colunas originais)
+                rows.push(['', '', '', 'Total Receita', '', '', (totalRevenue ? ('R$ ' + totalRevenue.toFixed(2).replace('.', ',')) : ''), '', '', '', '']);
+                rows.push(['', '', '', `Taxa R$0,50 por corte (x${totalCuts})`, '', '', (totalFee ? ('R$ ' + totalFee.toFixed(2).replace('.', ',')) : ''), '', '', '', '']);
+                rows.push(['', '', '', 'Total Geral (com taxa)', '', '', (grandTotal ? ('R$ ' + grandTotal.toFixed(2).replace('.', ',')) : ''), '', '', '', '']);
 
-                msgEl.style.color = 'var(--green)';
-                msgEl.textContent = `Relatório gerado: ${filename}`;
+                // Gera PDF usando jsPDF + autoTable (carregados dinamicamente)
+                const pdfFilename = `report-${period}-${startISO}-to-${new Date(end - 1).toISOString().split('T')[0]}.pdf`;
+                try {
+                    // Carrega jsPDF (UMD) via tag <script> para expor em window.jspdf
+                    await new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                        s.onload = resolve;
+                        s.onerror = () => reject(new Error('Falha ao carregar jspdf (UMD)'));
+                        document.head.appendChild(s);
+                    });
+
+                    // Tenta obter o construtor jsPDF a partir das possíveis exposições UMD
+                    let jsPDF = null;
+                    if (window.jspdf) {
+                        jsPDF = window.jspdf.jsPDF || (window.jspdf.default && window.jspdf.default.jsPDF) || window.jspdf.default || window.jspdf;
+                    }
+                    if (!jsPDF && window.jsPDF) jsPDF = window.jsPDF;
+                    if (!jsPDF) throw new Error('jsPDF não encontrado após carregar UMD');
+
+                    // carrega plugin autotable dinamicamente (adiciona globalmente)
+                    await new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js';
+                        s.onload = resolve;
+                        s.onerror = () => reject(new Error('Falha ao carregar jspdf-autotable'));
+                        document.head.appendChild(s);
+                    });
+
+                    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+                    const margin = 40;
+                    const pageWidth = doc.internal.pageSize.getWidth();
+
+                    // Cabeçalho estilizado
+                    doc.setFontSize(18);
+                    doc.setTextColor(212, 175, 55);
+                    doc.setFont('helvetica', 'bold');
+                    const title = `LOPES BARBEARIA`;
+                    doc.text(title, pageWidth / 2, 40, { align: 'center' });
+
+                    doc.setFontSize(12);
+                    doc.setTextColor(200);
+                    doc.setFont('helvetica', 'normal');
+                    const subtitle = `Relatório (${period}) — ${formatarData(startISO)} a ${formatarData(new Date(end - 1).toISOString().split('T')[0])}`;
+                    doc.text(subtitle, pageWidth / 2, 60, { align: 'center' });
+
+                    // Linha separadora
+                    doc.setDrawColor(212, 175, 55);
+                    doc.setLineWidth(0.8);
+                    doc.line(margin, 68, pageWidth - margin, 68);
+
+                    // autoTable: usa o primeiro row como header
+                    const header = rows[0];
+                    const body = rows.slice(1);
+
+                    // Para o PDF queremos remover colunas sensíveis/longas: 'ID' e 'CriadoEm'
+                    const indexesToKeep = header.map(h => !(h === 'ID' || h === 'CriadoEm'));
+                    const pdfHeader = header.filter((_, i) => indexesToKeep[i]);
+                    const pdfBody = body.map(row => row.filter((_, i) => indexesToKeep[i]));
+
+                    // Certifica-se que autoTable está disponível; tentar múltiplos locais onde o plugin pode ter sido registrado
+                    if (typeof doc.autoTable !== 'function') {
+                        if (window.jspdf && typeof window.jspdf.autoTable === 'function') {
+                            doc.autoTable = window.jspdf.autoTable;
+                        } else if (window.jspdf && window.jspdf.default && typeof window.jspdf.default.autoTable === 'function') {
+                            doc.autoTable = window.jspdf.default.autoTable;
+                        } else if (window.jspdf && window.jspdf.jsPDF && typeof window.jspdf.jsPDF.autoTable === 'function') {
+                            doc.autoTable = window.jspdf.jsPDF.autoTable;
+                        }
+                    }
+
+                    // Define estilos e alinhamentos (coluna 'Preço' alinhada à direita)
+                    const priceColIndex = pdfHeader.indexOf('Preço');
+
+                    doc.autoTable({
+                        head: [pdfHeader],
+                        body: pdfBody,
+                        startY: 80,
+                        theme: 'striped',
+                        styles: { fontSize: 10, textColor: 40 },
+                        headStyles: { fillColor: [212, 175, 55], textColor: 0 },
+                        columnStyles: priceColIndex !== -1 ? { [priceColIndex]: { halign: 'right' }, 0: { halign: 'center' } } : { 0: { halign: 'center' } },
+                        margin: { left: margin, right: margin },
+                        didDrawPage: (data) => {
+                            // rodapé com numeração de página
+                            const pageCount = doc.getNumberOfPages();
+                            const pageCurrent = doc.internal.getNumberOfPages();
+                            const footerStr = `Página ${doc.internal.getCurrentPageInfo().pageNumber} de ${pageCount}`;
+                            doc.setFontSize(9);
+                            doc.setTextColor(150);
+                            doc.text(footerStr, pageWidth - margin, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
+                        }
+                    });
+
+                    // Adiciona resumo como uma pequena tabela abaixo da autoTable
+                    const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) || 80;
+                    const summaryBody = [
+                        ['Total Receita', `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`],
+                        [`Taxa R$0,50 por corte (x${totalCuts})`, `R$ ${totalFee.toFixed(2).replace('.', ',')}`],
+                        ['Total Geral (com taxa)', `R$ ${grandTotal.toFixed(2).replace('.', ',')}`]
+                    ];
+
+                    doc.autoTable({
+                        head: [['','']],
+                        body: summaryBody,
+                        startY: finalY + 12,
+                        theme: 'plain',
+                        styles: { fontSize: 11 },
+                        columnStyles: { 0: { halign: 'left' }, 1: { halign: 'right' } },
+                        margin: { left: margin, right: margin }
+                    });
+
+                    // Salva o PDF
+                    doc.save(pdfFilename);
+
+                    msgEl.style.color = 'var(--green)';
+                    msgEl.textContent = `Relatório gerado: ${pdfFilename}`;
+                } catch (pdfErr) {
+                    console.warn('Falha ao gerar PDF, gerando CSV como fallback:', pdfErr);
+                    // Fallback para CSV
+                    const csv = rows.map(r => r.map(csvEscape).join(',')).join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                    const filename = `report-${period}-${startISO}-to-${new Date(end - 1).toISOString().split('T')[0]}.csv`;
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', filename);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+
+                    msgEl.style.color = 'var(--orange)';
+                    msgEl.textContent = `PDF não disponível. CSV gerado: ${filename}`;
+                }
 
             } catch (e) {
                 console.error('Erro gerando relatório:', e);
