@@ -1574,7 +1574,7 @@
              return svc.split(' - ')[0].trim();
         }
 
-        function renderServiceReports(serviceList, totalRevenue, periodDisplay, isTaxIncluded, taxData) {
+        function renderServiceReports(serviceList, totalRevenue, totalExpenses, totalProfit, periodDisplay, isTaxIncluded, taxData) {
             
             reportResults.innerHTML = '';
             
@@ -1589,6 +1589,25 @@
                 <div class="total-geral">
                     <h3 style="margin: 0 0 5px 0;">💰 VALOR TOTAL DE RECEITA</h3>
                     <div style="font-size: 1.5em; font-weight: bold;">${formatarPreco(totalRevenue)}</div>
+                </div>
+            `;
+
+            // Total de Despesas
+            reportHTML += `
+                <div class="total-taxa" style="color: var(--red); border: 2px solid var(--red); background-color: #3c1f1f;">
+                    <h3 style="margin: 0 0 5px 0;">🔴 VALOR TOTAL DE DESPESAS</h3>
+                    <div style="font-size: 1.5em; font-weight: bold;">${formatarPreco(totalExpenses)}</div>
+                </div>
+            `;
+
+            // Lucro Líquido
+            const profitColor = totalProfit >= 0 ? 'var(--green)' : 'var(--red)';
+            const profitBg = totalProfit >= 0 ? '#213c21' : '#3c1f1f';
+            const profitBorder = totalProfit >= 0 ? 'var(--green)' : 'var(--red)';
+            reportHTML += `
+                <div class="total-geral" style="color: ${profitColor}; border: 2px solid ${profitBorder}; background-color: ${profitBg}; margin-top: 15px;">
+                    <h3 style="margin: 0 0 5px 0;">📈 LUCRO LÍQUIDO (RECEITA - DESPESAS)</h3>
+                    <div style="font-size: 1.5em; font-weight: bold;">${formatarPreco(totalProfit)}</div>
                 </div>
             `;
 
@@ -1778,21 +1797,25 @@
             end.setHours(23, 59, 59, 999);
             
             const agendamentosRef = collection(db, "agendamentos");
-            const q = query(agendamentosRef, where("data", ">=", startISO), orderBy("data", "asc"), orderBy("hora", "asc"));
+            const despesasRef = collection(db, "despesas");
+            const qAgendamentos = query(agendamentosRef, where("data", ">=", startISO), orderBy("data", "asc"), orderBy("hora", "asc"));
+            const qDespesas = query(despesasRef, where("date", ">=", startISO), orderBy("date", "asc"));
             
             // Checa se o usuário atual é o admin especial (você)
             const isAdminSpecial = currentUser && currentUser.email.toLowerCase() === SAULLINHO_SPECIAL_ADMIN; 
 
             try {
-                const snap = await getDocs(q);
+                const snapAgendamentos = await getDocs(qAgendamentos);
+                const snapDespesas = await getDocs(qDespesas);
                 
                 let totalRevenue = 0; 
+                let totalExpenses = 0;
                 const serviceRevenue = {}; 
                 const mains = []; 
                 let totalCortes = 0; // Contador de cortes/combos para a taxa
                 let totalTax = 0; // Total da taxa do desenvolvedor
 
-                snap.forEach(docSnap => { 
+                snapAgendamentos.forEach(docSnap => { 
                     const d = docSnap.data(); 
                     // pula documentos de bloqueio de dia e slots extras
                     if (d && (d.idBloqueio === 'BLOQUEIO_TOTAL' || d.parentId || (d.servico && d.servico.toString().toUpperCase().includes('SLOT_EXTRA')))) return;
@@ -1818,6 +1841,14 @@
                     mains.push({ id: docSnap.id, data: d }); 
                 }); 
 
+                snapDespesas.forEach(docSnap => {
+                    const d = docSnap.data();
+                    const value = Number(d.value) || 0;
+                    totalExpenses += value;
+                });
+
+                let totalProfit = totalRevenue - totalExpenses;
+
                 // Transforma o mapa de receitas em lista para o renderer
                 const serviceList = Object.entries(serviceRevenue).map(([servico, total]) => ({ servico, total }));
                 
@@ -1833,7 +1864,7 @@
                     totalCortes: totalCortes,
                     totalTax: totalTax
                 };
-                renderServiceReports(serviceList, totalRevenue, periodDisplay, isAdminSpecial, taxData); 
+                renderServiceReports(serviceList, totalRevenue, totalExpenses, totalProfit, periodDisplay, isAdminSpecial, taxData); 
                 
                 adminReportMsg.style.color = 'var(--green)';
                 adminReportMsg.textContent = `Relatório de ${periodDisplay} gerado com sucesso! ${totalCortes} cortes/combos encontrados.`;
